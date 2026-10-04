@@ -2,6 +2,7 @@ import { ROLE } from './lib/roles.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderHabits } from './views/habits.js';
 import { renderHouse } from './views/house/index.js';
+import { renderReview } from './views/review.js';
 import { renderSettings } from './views/settings.js';
 import { renderTasks } from './views/tasks.js';
 import { renderToday } from './views/today.js';
@@ -52,6 +53,14 @@ export const ROUTES = [
     inNav: true,
     default: [ROLE.MEMBER],
     render: renderHouse,
+  },
+  {
+    path: 'review',
+    title: 'Revue de la semaine',
+    icon: 'today',
+    roles: ADMIN_ONLY,
+    inNav: false,
+    render: renderReview,
   },
   {
     path: 'settings',

@@ -1,4 +1,4 @@
-import { reportError } from '../components/toast.js';
+import { reportError, showToast } from '../components/toast.js';
 import { dayKey, formatLongDate, monthKey } from '../lib/dates.js';
 import { h, mount } from '../lib/dom.js';
 import { activeHabits, checkKey, indexChecks } from '../lib/habits.js';
@@ -17,6 +17,7 @@ import { openQuickAdd } from './expenseSheets.js';
 import { budgetLine } from './expenses.js';
 import { goalsCard } from './goals.js';
 import { taskRow } from './tasks.js';
+import { summaryCards } from './todaySummary.js';
 
 const firstName = (displayName) => (displayName ?? '').trim().split(/\s+/)[0] ?? '';
 
@@ -206,8 +207,26 @@ export function renderToday(outlet, { user }) {
   const habits = habitsTodayCard();
   const spending = spendingTodayCard();
   const bills = billsTodayCard();
+  const summary = summaryCards({
+    onAddGoal: () => {
+      const form = goals.el.querySelector('form');
+      if (!form || form.hidden) return showToast('5 objectifs maximum par jour.');
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      form.querySelector('input')?.focus({ preventScroll: true });
+    },
+  });
 
-  const grid = h('div', { class: 'grid' }, goals.el, tasks.el, habits.el, spending.el, bills.el);
+  const grid = h(
+    'div',
+    { class: 'grid' },
+    summary.dayEl,
+    goals.el,
+    tasks.el,
+    habits.el,
+    spending.el,
+    bills.el,
+    summary.weekEl,
+  );
 
   mount(outlet, header, grid);
 
@@ -224,5 +243,6 @@ export function renderToday(outlet, { user }) {
     habits.cleanup();
     spending.cleanup();
     bills.cleanup();
+    summary.cleanup();
   };
 }
