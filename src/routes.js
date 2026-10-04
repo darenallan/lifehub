@@ -1,16 +1,16 @@
 import { ROLE } from './lib/roles.js';
-import { renderExpenses } from './views/expenses.js';
-import { renderHabits } from './views/habits.js';
-import { renderHouse } from './views/house/index.js';
-import { renderReview } from './views/review.js';
-import { renderSettings } from './views/settings.js';
-import { renderTasks } from './views/tasks.js';
-import { renderToday } from './views/today.js';
 
 const ADMIN_ONLY = [ROLE.ADMIN];
 const HOUSE_ROLES = [ROLE.ADMIN, ROLE.MEMBER];
 
+/**
+ * Vue chargée à la demande : écran de connexion et premier affichage plus légers.
+ * Le service worker précache tous les fichiers, donc l'app reste utilisable hors ligne.
+ */
+const lazy = (load, name) => async (outlet, ctx) => (await load())[name](outlet, ctx);
+
 // `default` : true (pour tous les rôles de la route) ou liste des rôles qui y atterrissent.
+// `navParent` : onglet de la barre à mettre en avant pour un écran secondaire.
 export const ROUTES = [
   {
     path: 'today',
@@ -19,7 +19,7 @@ export const ROUTES = [
     roles: ADMIN_ONLY,
     inNav: true,
     default: true,
-    render: renderToday,
+    render: lazy(() => import('./views/today.js'), 'renderToday'),
   },
   {
     path: 'habits',
@@ -27,7 +27,7 @@ export const ROUTES = [
     icon: 'habits',
     roles: ADMIN_ONLY,
     inNav: true,
-    render: renderHabits,
+    render: lazy(() => import('./views/habits.js'), 'renderHabits'),
   },
   {
     path: 'expenses',
@@ -35,7 +35,7 @@ export const ROUTES = [
     icon: 'expenses',
     roles: ADMIN_ONLY,
     inNav: true,
-    render: renderExpenses,
+    render: lazy(() => import('./views/expenses.js'), 'renderExpenses'),
   },
   {
     path: 'tasks',
@@ -43,7 +43,7 @@ export const ROUTES = [
     icon: 'tasks',
     roles: ADMIN_ONLY,
     inNav: true,
-    render: renderTasks,
+    render: lazy(() => import('./views/tasks.js'), 'renderTasks'),
   },
   {
     path: 'house',
@@ -52,22 +52,46 @@ export const ROUTES = [
     roles: HOUSE_ROLES,
     inNav: true,
     default: [ROLE.MEMBER],
-    render: renderHouse,
+    render: lazy(() => import('./views/house/index.js'), 'renderHouse'),
+  },
+  {
+    path: 'more',
+    title: 'Plus',
+    icon: 'more',
+    roles: HOUSE_ROLES,
+    inNav: true,
+    render: lazy(() => import('./views/more.js'), 'renderMore'),
   },
   {
     path: 'review',
     title: 'Revue de la semaine',
     icon: 'today',
     roles: ADMIN_ONLY,
-    inNav: false,
-    render: renderReview,
+    navParent: 'more',
+    render: lazy(() => import('./views/review.js'), 'renderReview'),
+  },
+  {
+    path: 'debts',
+    title: 'Dettes et prêts',
+    icon: 'expenses',
+    roles: ADMIN_ONLY,
+    navParent: 'more',
+    render: lazy(() => import('./views/debts.js'), 'renderDebts'),
+  },
+  {
+    path: 'notes',
+    title: 'Notes rapides',
+    icon: 'tasks',
+    roles: ADMIN_ONLY,
+    navParent: 'more',
+    render: lazy(() => import('./views/notes.js'), 'renderNotes'),
   },
   {
     path: 'settings',
     title: 'Réglages',
     icon: 'settings',
     roles: HOUSE_ROLES,
-    inNav: true,
-    render: renderSettings,
+    navParent: 'more',
+    render: lazy(() => import('./views/settings.js'), 'renderSettings'),
   },
 ];

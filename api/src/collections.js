@@ -8,6 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const WEEK = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+const MINUTE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const EVERYONE = ['admin', 'member'];
 const quantity = { type: 'number', minimum: 0, maximum: 999999 };
 
@@ -280,6 +281,31 @@ export const COLLECTIONS = {
       checked: { column: 'checked', schema: { type: 'boolean' } },
       source: { column: 'source', schema: { enum: ['manual', 'stock', 'menu'] } },
       stockId: { column: 'stock_id', schema: { ...uuid, nullable: true } },
+    },
+  },
+
+  // ---------- Phase 6 : extras perso ----------
+  debt: {
+    table: 'debts',
+    roles: ADMIN,
+    fields: {
+      person: { column: 'person', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+      direction: { column: 'direction', schema: { enum: ['lent', 'borrowed'] } },
+      amount: { column: 'amount', schema: money },
+      note,
+      date: { column: 'date', schema: { type: 'string', pattern: DAY } },
+      settled: { column: 'settled', schema: { type: 'boolean' } },
+      settledOn: { column: 'settled_on', schema: { type: 'string', pattern: DAY, nullable: true } },
+    },
+  },
+
+  quickNote: {
+    table: 'quick_notes',
+    roles: ADMIN,
+    fields: {
+      text: { column: 'text', schema: { type: 'string', minLength: 1, maxLength: 2000 } },
+      pinned: { column: 'pinned', schema: { type: 'boolean' } },
+      createdAt: { column: 'created_at', schema: { type: 'string', pattern: MINUTE } },
     },
   },
 };

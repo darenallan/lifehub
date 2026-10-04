@@ -145,7 +145,7 @@ Validation attendue sur chaque collection : champs autorisés uniquement, types,
 
 - **Injection/XSS** : jamais `innerHTML` avec des données utilisateur ; utiliser `textContent` / création de nœuds DOM. Un helper `dom.js` centralise ça.
 - **CSP stricte** via `vercel.json` (headers) : `default-src 'self'`, **pas de `'unsafe-inline'` ni `'unsafe-eval'` sur `script-src`**, `connect-src` limité à l'API Render et aux domaines Firebase Auth/Google, `frame-src` pour Google Sign-In, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`. Plus `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimale. Cache : `sw.js`/`index.html` en `no-cache`, assets hashés en `immutable`.
-- **API** : CORS limité à `ALLOWED_ORIGINS`, `helmet`, rate limit (120 req/min/IP), corps ≤ 256 Ko, erreurs génériques (pas de stack exposée), logs sans en-tête `Authorization`.
+- **API** : CORS limité à `ALLOWED_ORIGINS`, `helmet`, rate limit (120 req/min/IP) + 60 sync/min/compte, corps ≤ 256 Ko, erreurs génériques (pas de stack exposée), logs sans en-tête `Authorization`. Après le premier déploiement, remplacer `https://*.onrender.com` par l'URL exacte de l'API dans la CSP de `vercel.json`.
 - **Secrets** : la config Firebase web n'est pas secrète mais vit dans `.env` (non commité, `.env.example` fourni). Restreindre la clé API par référents HTTP côté Google Cloud. `DATABASE_URL` et `ADMIN_EMAIL` uniquement dans les variables d'env Render (`api/.env` en local, non commité). `.gitignore` complet.
 - **Auth** : Google uniquement, e-mail vérifié obligatoire ; déconnexion qui peut effacer la base locale (IndexedDB) ; le rôle vient de `GET /api/me` (le cache local du rôle sert seulement à ouvrir l'app hors ligne et ne donne accès à aucune donnée serveur).
 - **App Check** : non applicable à une API maison sans coût ; en phase 6, durcir plutôt l'API (rate limit par uid, journalisation des refus).
@@ -170,7 +170,7 @@ Chaque phase : code, tests, `npm run lint && npm test`, commit clair (`feat(habi
 - **Phase 3 — Objectifs du jour + tâches** : 1–5 objectifs du jour cochables, tâches avec priorité/échéance/récurrence, vues Aujourd'hui / À venir / Terminées, rappels in-app (notifications locales si permission accordée).
 - **Phase 4 — Maison** : création de la maison, invitation/révocation de colocs (admin seul), stock avec seuil, menu hebdo, factures + échéances + récurrence, liste de courses auto-générée (stock sous seuil) + manuelle. Shell réduit pour les colocs.
 - **Phase 5 — « Aujourd'hui » complet** : agrégation (habitudes du jour, objectifs, tâches dues, factures sous 7 jours, dépense du jour + budget restant), actions rapides, revue hebdomadaire automatique (habitudes, dépenses, tâches faites).
-- **Phase 6 — Durcissement et extras** : App Check, export/import JSON, dettes & prêts (qui doit quoi), notes rapides, audit sécurité final (rules, CSP, `npm audit`), Lighthouse PWA ≥ 90.
+- **Phase 6 — Durcissement et extras** : export/import JSON (local, revalidé par l'API), dettes & prêts (qui doit quoi), notes rapides, onglet « Plus », limite de débit par compte sur la sync (en plus de la limite par IP), purge du journal d'idempotence (> 30 j), vues chargées à la demande, audit sécurité final (droits API, CSP, `npm audit`), Lighthouse (la catégorie PWA n'existe plus depuis Lighthouse 12 : installabilité vérifiée via le manifeste et le service worker).
 
 ## 9. Commandes de référence
 

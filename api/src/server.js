@@ -10,6 +10,10 @@ assertConfig(config);
 const db = await createDb(config);
 const applied = await migrate(db);
 
+// Journal technique d'idempotence (pas une donnée utilisateur) : 30 jours suffisent
+// pour rejouer une écriture restée hors ligne.
+await db.query("DELETE FROM applied_mutations WHERE applied_at < now() - interval '30 days'");
+
 const verifyToken = createTokenVerifier({
   projectId: config.firebaseProjectId,
   emulator: Boolean(config.authEmulatorHost),

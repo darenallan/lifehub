@@ -21,28 +21,46 @@ export function pickRoute(routes, path, role) {
   return { route: fallback ?? null, redirected: true };
 }
 
+/**
+ * Une vue peut être chargée à la demande : render() renvoie alors une promesse de cleanup.
+ * Si l'utilisateur a changé de page entre-temps, la vue arrivée en retard est aussitôt nettoyée.
+ */
 export function createRouter({ routes, outlet, getContext, onRoute }) {
   let cleanup = null;
+  let navigation = 0;
+  let destroyed = false;
 
-  function render() {
+  async function render() {
     const ctx = getContext();
     const { path, params } = parseHash(location.hash);
     const { route, redirected } = pickRoute(routes, path, ctx.role);
     if (!route) return;
     if (redirected) history.replaceState(null, '', `#/${route.path}`);
 
+    const current = ++navigation;
     if (typeof cleanup === 'function') cleanup();
-    cleanup = route.render(outlet, { ...ctx, params }) ?? null;
+    cleanup = null;
     document.title = `${route.title} · LifeHub`;
     onRoute?.(route);
+
+    const result = await route.render(outlet, { ...ctx, params });
+    if (current !== navigation || destroyed) {
+      if (typeof result === 'function') result();
+      return;
+    }
+    cleanup = result ?? null;
   }
 
-  window.addEventListener('hashchange', render);
+  const onHashChange = () => {
+    render().catch((err) => console.error(err));
+  };
+  window.addEventListener('hashchange', onHashChange);
 
   return {
-    render,
+    render: onHashChange,
     destroy() {
-      window.removeEventListener('hashchange', render);
+      destroyed = true;
+      window.removeEventListener('hashchange', onHashChange);
       if (typeof cleanup === 'function') cleanup();
       cleanup = null;
     },

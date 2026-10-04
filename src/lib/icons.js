@@ -11,6 +11,7 @@ const PATHS = {
   tasks: ['M9 6h11M9 12h11M9 18h11', 'M4 6l1 1l2-2M4 12l1 1l2-2M4 18l1 1l2-2'],
   house: ['M3 11l9-7l9 7', 'M5 10v10h14V10', 'M10 20v-6h4v6'],
   settings: ['M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12', 'M14 4v4M8 10v4M16 16v4'],
+  more: ['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'],
   logout: ['M15 4h4v16h-4', 'M10 8l-4 4l4 4', 'M6 12h10'],
   cloudOff: ['M3 3l18 18', 'M8 7a6 6 0 0 1 10 4a4 4 0 0 1 1 7.5M15 19H7a5 5 0 0 1-2-9.6'],
   sync: ['M20 11a8 8 0 0 0-14-5L4 8', 'M4 4v4h4', 'M4 13a8 8 0 0 0 14 5l2-2', 'M20 20v-4h-4'],

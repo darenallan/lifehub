@@ -1,6 +1,7 @@
 import { AuthError } from './auth.js';
 import { seedDefaultCategories } from './defaults.js';
 import { acceptInvites, memberHouses, registerHouseRoutes } from './house.js';
+import { createLimiter } from './limiter.js';
 import { applyMutation, pullChanges } from './sync.js';
 
 const syncBodySchema = {
@@ -58,11 +59,18 @@ export function registerRoutes(app, { db, collections, authenticate }) {
 
   registerHouseRoutes(app, { db, authenticate });
 
+  // 60 synchros / minute / compte : large pour l'app (une sync par écriture groupée),
+  // bloquant pour un script qui martèlerait l'API avec un jeton volé.
+  const allowSync = createLimiter({ max: 60, windowMs: 60_000 });
+
   app.post(
     '/api/sync',
     { preHandler: authenticate, schema: { body: syncBodySchema } },
-    async (request) => {
+    async (request, reply) => {
       requireRole(request);
+      if (!allowSync(request.user.uid)) {
+        return reply.code(429).send({ error: 'too_many_requests' });
+      }
       const ctx = { user: request.user, role: request.user.role, collections };
       const result = { applied: [], rejected: [] };
 

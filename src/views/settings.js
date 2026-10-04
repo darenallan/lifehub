@@ -6,7 +6,89 @@ import { icon } from '../lib/icons.js';
 import { getTheme, setTheme } from '../lib/theme.js';
 import { ROLE } from '../lib/roles.js';
 import { saveProfile, watchProfile } from '../repos/profile.js';
+import { parseBackup } from '../lib/backup.js';
+import { dayKey } from '../lib/dates.js';
+import { exportBackup, importBackup } from '../repos/extras.js';
 import { card, pageHeader } from './common.js';
+
+const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
+
+async function downloadExport() {
+  const backup = await exportBackup();
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = h('a', { download: `lifehub-export-${dayKey()}.json` });
+  link.href = url; // URL blob: posée directement (dom.js n'autorise que http/https/relatives)
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const total = Object.values(backup.collections).reduce((s, list) => s + list.length, 0);
+  showToast(`Export prêt : ${total} élément(s).`);
+}
+
+async function importFile(file) {
+  if (file.size > MAX_IMPORT_BYTES) {
+    showToast('Fichier trop volumineux (10 Mo maximum).', { tone: 'danger' });
+    return;
+  }
+  const parsed = parseBackup(await file.text());
+  if (!parsed.ok) {
+    showToast(parsed.error, { tone: 'danger' });
+    return;
+  }
+  const summary = Object.entries(parsed.counts)
+    .map(([collection, n]) => `${collection} : ${n}`)
+    .join(', ');
+  const ok = await confirmDialog({
+    title: `Importer ${parsed.docs.length} élément(s) ?`,
+    message: `${summary}. Les éléments du fichier remplacent ceux qui ont le même identifiant ; rien n'est supprimé.`,
+    confirmLabel: 'Importer',
+  });
+  if (!ok) return;
+  const count = await importBackup(parsed.docs, (n) => showToast(`Import… ${n}`));
+  showToast(`Import terminé : ${count} élément(s). Synchronisation en cours.`);
+}
+
+/** Export / import JSON : le fichier reste sur l'appareil, rien n'est envoyé à un tiers. */
+function dataCard() {
+  const fileInput = h('input', {
+    type: 'file',
+    accept: 'application/json,.json',
+    class: 'sr-only',
+    id: 'import-file',
+    onchange: (e) => {
+      const [file] = e.target.files;
+      e.target.value = '';
+      if (file) importFile(file).catch(reportError);
+    },
+  });
+  return card({
+    title: 'Mes données',
+    body: [
+      h(
+        'p',
+        { class: 'muted' },
+        "Export de tes données perso (habitudes, dépenses, tâches, dettes, notes…) dans un fichier JSON sur ton appareil. Rien n'est envoyé à un tiers.",
+      ),
+      h(
+        'div',
+        { class: 'row row--wrap' },
+        h(
+          'button',
+          {
+            class: 'btn btn--primary',
+            type: 'button',
+            onclick: () => downloadExport().catch(reportError),
+          },
+          'Exporter (JSON)',
+        ),
+        h('label', { class: 'btn btn--ghost', for: 'import-file' }, 'Importer un fichier'),
+        fileInput,
+      ),
+    ],
+  });
+}
 
 const THEMES = [
   { value: 'dark', label: 'Sombre' },
@@ -103,6 +185,7 @@ export function renderSettings(outlet, { user, role }) {
         ? card({ title: 'Profil', body: [h('p', { class: 'muted' }, 'Prénom affiché'), form] })
         : null,
       card({ title: 'Apparence', body: themeSwitch(isAdmin) }),
+      isAdmin ? dataCard() : null,
       card({
         title: 'Compte',
         body: [

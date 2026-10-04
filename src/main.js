@@ -64,7 +64,7 @@ function renderShell(state) {
     routes: ROUTES,
     outlet,
     getContext: () => ({ user: getState().user, role: getState().role }),
-    onRoute: (route) => nav.setActive(route.path),
+    onRoute: (route) => nav.setActive(route.navParent ?? route.path),
   });
   router.render();
 }
