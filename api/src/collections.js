@@ -5,8 +5,26 @@
 const DAY = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 const ADMIN = ['admin'];
 const day = { column: 'day', schema: { type: 'string', pattern: DAY } };
+const uuid = { type: 'string', pattern: UUID };
+// FCFA : entier strictement positif, jamais de flottant.
+const money = { type: 'integer', minimum: 1, maximum: 999999999 };
+const note = { column: 'note', schema: { type: 'string', maxLength: 200, nullable: true } };
+
+export const CATEGORY_COLORS = [
+  'orange',
+  'blue',
+  'green',
+  'red',
+  'purple',
+  'yellow',
+  'teal',
+  'pink',
+  'gray',
+];
 
 export const COLLECTIONS = {
   profile: {
@@ -52,6 +70,50 @@ export const COLLECTIONS = {
         column: 'sleep_minutes',
         schema: { type: 'integer', minimum: 0, maximum: 1440, nullable: true },
       },
+    },
+  },
+
+  // ---------- Phase 2 : dépenses ----------
+  category: {
+    table: 'categories',
+    roles: ADMIN,
+    fields: {
+      name: { column: 'name', schema: { type: 'string', minLength: 1, maxLength: 40 } },
+      emoji: { column: 'emoji', schema: { type: 'string', maxLength: 16, nullable: true } },
+      color: { column: 'color', schema: { enum: CATEGORY_COLORS } },
+      monthlyBudget: { column: 'monthly_budget', schema: { ...money, minimum: 0 } },
+      order: { column: 'sort_order', schema: { type: 'integer', minimum: 0, maximum: 100000 } },
+      active: { column: 'active', schema: { type: 'boolean' } },
+    },
+  },
+
+  expense: {
+    table: 'expenses',
+    roles: ADMIN,
+    fields: {
+      amount: { column: 'amount', schema: money },
+      categoryId: { column: 'category_id', schema: uuid },
+      note,
+      date: { column: 'date', schema: { type: 'string', pattern: DAY } },
+      recurringId: { column: 'recurring_id', schema: { ...uuid, nullable: true } },
+    },
+  },
+
+  // Modèle : les occurrences sont créées côté client avec un id déterministe (modèle + mois).
+  recurringExpense: {
+    table: 'recurring_expenses',
+    roles: ADMIN,
+    fields: {
+      amount: { column: 'amount', schema: money },
+      categoryId: { column: 'category_id', schema: uuid },
+      note,
+      dayOfMonth: { column: 'day_of_month', schema: { type: 'integer', minimum: 1, maximum: 31 } },
+      startMonth: { column: 'start_month', schema: { type: 'string', pattern: MONTH } },
+      lastMonth: {
+        column: 'last_month',
+        schema: { type: 'string', pattern: MONTH, nullable: true },
+      },
+      active: { column: 'active', schema: { type: 'boolean' } },
     },
   },
 };

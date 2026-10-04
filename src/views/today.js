@@ -3,8 +3,13 @@ import { dayKey, formatLongDate, monthKey } from '../lib/dates.js';
 import { h, mount } from '../lib/dom.js';
 import { activeHabits, checkKey, indexChecks } from '../lib/habits.js';
 import { setCheck, watchHabits, watchMonthLogs } from '../repos/habits.js';
+import { sumAmounts, totalBudget } from '../lib/expenses.js';
+import { formatXOF } from '../lib/money.js';
+import { generateRecurring, watchCategories, watchMonthExpenses } from '../repos/expenses.js';
 import { watchProfile } from '../repos/profile.js';
 import { card, emptyState, pageHeader } from './common.js';
+import { openQuickAdd } from './expenseSheets.js';
+import { budgetLine } from './expenses.js';
 
 const firstName = (displayName) => (displayName ?? '').trim().split(/\s+/)[0] ?? '';
 
@@ -71,20 +76,72 @@ function habitsTodayCard() {
   return { el, cleanup: () => unsubscribers.forEach((u) => u()) };
 }
 
+/** Dépense du jour, budget restant du mois, ajout rapide. */
+function spendingTodayCard() {
+  const today = dayKey();
+  const state = { categories: [], expenses: [] };
+  const body = h('div', { class: 'stack' });
+  const el = card({
+    title: 'Dépense du jour',
+    iconName: 'expenses',
+    body,
+    footer: h(
+      'div',
+      { class: 'row row--between' },
+      h('a', { class: 'link', href: '#/expenses' }, 'Voir le mois →'),
+      h(
+        'button',
+        {
+          class: 'btn btn--primary btn--sm',
+          type: 'button',
+          onclick: () => openQuickAdd(state.categories),
+        },
+        '+ Dépense',
+      ),
+    ),
+  });
+
+  function render() {
+    const todayTotal = sumAmounts(state.expenses.filter((e) => e.date === today));
+    const monthTotal = sumAmounts(state.expenses);
+    mount(
+      body,
+      h('p', { class: 'money-big' }, formatXOF(todayTotal)),
+      h('p', { class: 'muted' }, `Ce mois-ci : ${formatXOF(monthTotal)}`),
+      budgetLine(monthTotal, totalBudget(state.categories)),
+    );
+  }
+
+  const unsubscribers = [
+    watchCategories((all) => {
+      state.categories = all;
+      render();
+    }, reportError),
+    watchMonthExpenses(
+      monthKey(),
+      (expenses) => {
+        state.expenses = expenses;
+        render();
+      },
+      reportError,
+    ),
+  ];
+  // Les dépenses récurrentes dues apparaissent dès l'ouverture de l'app.
+  generateRecurring().catch(reportError);
+  return { el, cleanup: () => unsubscribers.forEach((u) => u()) };
+}
+
 export function renderToday(outlet, { user }) {
   const header = pageHeader('Bonjour', formatLongDate());
   const title = header.querySelector('.page-title');
   const habits = habitsTodayCard();
+  const spending = spendingTodayCard();
 
   const grid = h(
     'div',
     { class: 'grid' },
     habits.el,
-    card({
-      title: 'Dépense du jour',
-      iconName: 'expenses',
-      body: emptyState('Arrive en phase 2.'),
-    }),
+    spending.el,
     card({
       title: 'Objectifs & tâches',
       iconName: 'tasks',
@@ -104,5 +161,6 @@ export function renderToday(outlet, { user }) {
   return () => {
     unsubscribeProfile();
     habits.cleanup();
+    spending.cleanup();
   };
 }

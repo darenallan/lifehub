@@ -1,4 +1,5 @@
 import { AuthError } from './auth.js';
+import { seedDefaultCategories } from './defaults.js';
 import { applyMutation, pullChanges } from './sync.js';
 
 const syncBodySchema = {
@@ -39,11 +40,12 @@ export function registerRoutes(app, { db, collections, authenticate }) {
   app.get('/api/me', { preHandler: authenticate }, async (request) => {
     requireRole(request);
     const { uid, email, name, role } = request.user;
-    // Profil créé au premier passage, avec le prénom Google.
+    // Profil créé au premier passage, avec le prénom Google, puis les catégories par défaut.
     await db.query(
       'INSERT INTO profiles (user_id, display_name) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING',
       [uid, firstName(name)],
     );
+    if (role === 'admin') await seedDefaultCategories(db, uid);
     return { uid, email, role };
   });
 

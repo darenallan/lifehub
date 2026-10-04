@@ -1,5 +1,6 @@
 import { ROLE } from './lib/roles.js';
 import { comingSoon } from './views/common.js';
+import { renderExpenses } from './views/expenses.js';
 import { renderHabits } from './views/habits.js';
 import { renderSettings } from './views/settings.js';
 import { renderToday } from './views/today.js';
@@ -32,7 +33,7 @@ export const ROUTES = [
     icon: 'expenses',
     roles: ADMIN_ONLY,
     inNav: true,
-    render: comingSoon('Dépenses', 2),
+    render: renderExpenses,
   },
   {
     path: 'tasks',
