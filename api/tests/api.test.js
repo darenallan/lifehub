@@ -46,7 +46,12 @@ describe('authentification', () => {
   it('/me renvoie le rôle admin et crée le profil avec le prénom', async () => {
     const res = await call(app, { url: '/api/me', token: TOKENS.admin });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ uid: 'admin-uid', email: 'admin@example.com', role: 'admin' });
+    expect(res.json()).toEqual({
+      uid: 'admin-uid',
+      email: 'admin@example.com',
+      role: 'admin',
+      houses: [],
+    });
     const [row] = await db.query('SELECT display_name, currency, theme FROM profiles');
     expect(row).toEqual({ display_name: 'Daren', currency: 'XOF', theme: 'dark' });
   });

@@ -8,7 +8,10 @@ import { formatXOF } from '../lib/money.js';
 import { generateRecurring, watchCategories, watchMonthExpenses } from '../repos/expenses.js';
 import { watchProfile } from '../repos/profile.js';
 import { card, emptyState, pageHeader } from './common.js';
+import { billsDueSoon } from '../lib/house.js';
 import { tasksForView } from '../lib/tasks.js';
+import { watchHouse } from '../repos/house.js';
+import { unpaidBillRow } from './house/bills.js';
 import { watchTasks } from '../repos/tasks.js';
 import { openQuickAdd } from './expenseSheets.js';
 import { budgetLine } from './expenses.js';
@@ -135,6 +138,35 @@ function spendingTodayCard() {
   return { el, cleanup: () => unsubscribers.forEach((u) => u()) };
 }
 
+/** Factures de la maison non payées : en retard ou dues sous 7 jours. */
+function billsTodayCard() {
+  const today = dayKey();
+  const body = h('div');
+  const el = card({
+    title: 'Factures proches',
+    iconName: 'house',
+    body,
+    footer: h('a', { class: 'link', href: '#/house/bills' }, 'Toutes les factures →'),
+  });
+
+  const cleanup = watchHouse(({ house, bills }) => {
+    const due = billsDueSoon(bills, today);
+    mount(
+      body,
+      !house
+        ? emptyState('Pas encore de maison : crée-la dans « Maison ».')
+        : due.length
+          ? h(
+              'ul',
+              { class: 'bill-list' },
+              due.map((b) => unpaidBillRow(b, { isAdmin: true, today })),
+            )
+          : emptyState('Aucune facture dans les 7 prochains jours.'),
+    );
+  }, reportError);
+  return { el, cleanup };
+}
+
 /** Tâches en retard et du jour (5 premières), cochables. */
 function tasksTodayCard() {
   const today = dayKey();
@@ -173,16 +205,9 @@ export function renderToday(outlet, { user }) {
   const tasks = tasksTodayCard();
   const habits = habitsTodayCard();
   const spending = spendingTodayCard();
+  const bills = billsTodayCard();
 
-  const grid = h(
-    'div',
-    { class: 'grid' },
-    goals.el,
-    tasks.el,
-    habits.el,
-    spending.el,
-    card({ title: 'Factures proches', iconName: 'house', body: emptyState('Arrive en phase 4.') }),
-  );
+  const grid = h('div', { class: 'grid' }, goals.el, tasks.el, habits.el, spending.el, bills.el);
 
   mount(outlet, header, grid);
 
@@ -198,5 +223,6 @@ export function renderToday(outlet, { user }) {
     tasks.cleanup();
     habits.cleanup();
     spending.cleanup();
+    bills.cleanup();
   };
 }

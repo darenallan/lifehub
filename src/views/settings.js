@@ -4,6 +4,7 @@ import { reportError, showToast } from '../components/toast.js';
 import { h, mount } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { getTheme, setTheme } from '../lib/theme.js';
+import { ROLE } from '../lib/roles.js';
 import { saveProfile, watchProfile } from '../repos/profile.js';
 import { card, pageHeader } from './common.js';
 
@@ -12,7 +13,8 @@ const THEMES = [
   { value: 'light', label: 'Clair' },
 ];
 
-function themeSwitch() {
+/** syncProfile : l'admin garde son thème dans son profil ; un coloc seulement sur l'appareil. */
+function themeSwitch(syncProfile) {
   const buttons = THEMES.map(({ value, label }) =>
     h(
       'button',
@@ -25,7 +27,7 @@ function themeSwitch() {
           setTheme(value);
           for (const b of buttons)
             b.setAttribute('aria-pressed', String(b.dataset.value === value));
-          saveProfile({ theme: value }).catch(reportError);
+          if (syncProfile) saveProfile({ theme: value }).catch(reportError);
         },
       },
       label,
@@ -71,7 +73,8 @@ async function confirmWipe() {
   if (ok) logout({ clearCache: true }).catch(reportError);
 }
 
-export function renderSettings(outlet, { user }) {
+export function renderSettings(outlet, { user, role }) {
+  const isAdmin = role === ROLE.ADMIN;
   const { form, input } = nameForm();
 
   const accountActions = h(
@@ -96,8 +99,10 @@ export function renderSettings(outlet, { user }) {
     h(
       'div',
       { class: 'stack' },
-      card({ title: 'Profil', body: [h('p', { class: 'muted' }, 'Prénom affiché'), form] }),
-      card({ title: 'Apparence', body: themeSwitch() }),
+      isAdmin
+        ? card({ title: 'Profil', body: [h('p', { class: 'muted' }, 'Prénom affiché'), form] })
+        : null,
+      card({ title: 'Apparence', body: themeSwitch(isAdmin) }),
       card({
         title: 'Compte',
         body: [
@@ -109,6 +114,7 @@ export function renderSettings(outlet, { user }) {
     ),
   );
 
+  if (!isAdmin) return null; // profil = donnée perso de l'admin
   return watchProfile((profile) => {
     if (document.activeElement !== input) input.value = profile?.displayName ?? '';
   }, reportError);

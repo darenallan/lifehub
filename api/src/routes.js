@@ -1,5 +1,6 @@
 import { AuthError } from './auth.js';
 import { seedDefaultCategories } from './defaults.js';
+import { acceptInvites, memberHouses, registerHouseRoutes } from './house.js';
 import { applyMutation, pullChanges } from './sync.js';
 
 const syncBodySchema = {
@@ -38,16 +39,24 @@ export function registerRoutes(app, { db, collections, authenticate }) {
   app.get('/healthz', async () => ({ ok: true }));
 
   app.get('/api/me', { preHandler: authenticate }, async (request) => {
+    // Coloc invité : il rejoint sa maison à la première connexion (e-mail vérifié).
+    if (!request.user.role && (await acceptInvites(db, request.user)) > 0) {
+      request.user.role = 'member';
+    }
     requireRole(request);
     const { uid, email, name, role } = request.user;
-    // Profil créé au premier passage, avec le prénom Google, puis les catégories par défaut.
-    await db.query(
-      'INSERT INTO profiles (user_id, display_name) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING',
-      [uid, firstName(name)],
-    );
-    if (role === 'admin') await seedDefaultCategories(db, uid);
-    return { uid, email, role };
+    if (role === 'admin') {
+      // Profil créé au premier passage, avec le prénom Google, puis les catégories par défaut.
+      await db.query(
+        'INSERT INTO profiles (user_id, display_name) VALUES ($1, $2) ON CONFLICT (user_id) DO NOTHING',
+        [uid, firstName(name)],
+      );
+      await seedDefaultCategories(db, uid);
+    }
+    return { uid, email, role, houses: await memberHouses(db, uid) };
   });
+
+  registerHouseRoutes(app, { db, authenticate });
 
   app.post(
     '/api/sync',

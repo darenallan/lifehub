@@ -10,6 +10,8 @@ export const TOKENS = {
   admin: 'h.admin.s',
   adminUnverified: 'h.adminUnverified.s',
   stranger: 'h.stranger.s',
+  coloc: 'h.coloc.s',
+  colocUnverified: 'h.colocUnverified.s',
   broken: 'h.broken.s',
 };
 
@@ -17,6 +19,8 @@ const CLAIMS = {
   admin: { sub: 'admin-uid', email: 'Admin@Example.com', email_verified: true, name: 'Daren Tien' },
   adminUnverified: { sub: 'admin-uid', email: ADMIN_EMAIL, email_verified: false },
   stranger: { sub: 'stranger-uid', email: 'x@example.com', email_verified: true },
+  coloc: { sub: 'coloc-uid', email: 'Coloc@Example.com', email_verified: true, name: 'Awa Koné' },
+  colocUnverified: { sub: 'coloc-uid', email: 'coloc@example.com', email_verified: false },
 };
 
 async function fakeVerify(token) {

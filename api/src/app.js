@@ -26,7 +26,7 @@ export async function buildApp({
   await app.register(helmet, { crossOriginResourcePolicy: { policy: 'cross-origin' } });
   await app.register(cors, {
     origin: config.allowedOrigins,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Authorization', 'Content-Type'],
     maxAge: 600,
   });
@@ -42,7 +42,7 @@ export async function buildApp({
     return reply.code(500).send({ error: 'internal' });
   });
 
-  const authenticate = makeAuthenticate({ verifyToken, adminEmail: config.adminEmail });
+  const authenticate = makeAuthenticate({ verifyToken, adminEmail: config.adminEmail, db });
   registerRoutes(app, { db, collections, authenticate });
   return app;
 }

@@ -10,8 +10,15 @@ function ident(name) {
   return `"${name}"`;
 }
 
+const isHouseScoped = (def) => def.scope === 'house';
+
 function keyColumn(def) {
   return def.singleton ? 'user_id' : 'id';
+}
+
+/** Colonne qui rattache la ligne à son propriétaire : l'utilisateur, ou la maison. */
+function ownerColumn(def) {
+  return isHouseScoped(def) ? (def.houseColumn ?? 'house_id') : 'user_id';
 }
 
 /** docId client → valeur de clé en base, ou null si invalide. */
@@ -29,7 +36,7 @@ const rejected = (reason, details) => ({ status: 'rejected', reason, ...(details
  */
 export async function applyMutation(db, { user, role, collections }, m) {
   const def = Object.hasOwn(collections, m.collection) ? collections[m.collection] : null;
-  if (!def || !def.roles.includes(role)) return rejected('forbidden');
+  if (!def || !def.roles.includes(role) || def.readOnly) return rejected('forbidden');
   const key = resolveKey(def, m.docId, user.uid);
   if (!key) return rejected('invalid_doc_id');
 
@@ -46,13 +53,11 @@ export async function applyMutation(db, { user, role, collections }, m) {
       ]);
       if (seen.length) return applied();
 
-      if (m.op === 'patch') {
-        const written = await upsert(q, def, key, user.uid, m.data);
-        // Rien d'écrit : le document existe mais appartient à quelqu'un d'autre.
-        if (!written) return rejected('forbidden');
-      } else {
-        await softDelete(q, def, key, user.uid);
-      }
+      const refusal = isHouseScoped(def)
+        ? await writeHouseScoped(q, def, key, user, m)
+        : await writeUserScoped(q, def, key, user, m);
+      if (refusal) return refusal;
+
       await q('INSERT INTO applied_mutations (id, user_id) VALUES ($1, $2)', [m.id, user.uid]);
       return applied();
     });
@@ -63,32 +68,112 @@ export async function applyMutation(db, { user, role, collections }, m) {
   }
 }
 
+/** Données perso : la ligne appartient à l'utilisateur du jeton. Retourne un refus ou null. */
+async function writeUserScoped(q, def, key, user, m) {
+  const owner = { column: 'user_id', value: user.uid };
+  if (m.op === 'delete') {
+    await softDelete(q, def, key, owner);
+    return null;
+  }
+  // Rien d'écrit : le document existe mais appartient à quelqu'un d'autre.
+  return (await upsert(q, def, key, owner, m.data)) ? null : rejected('forbidden');
+}
+
+/**
+ * Données de maison : l'utilisateur doit être membre de la maison de la ligne,
+ * une ligne ne change jamais de maison, et les droits fins viennent de def.access.
+ */
+async function writeHouseScoped(q, def, key, user, m) {
+  const existing = await readExisting(q, def, key);
+  const requested = m.data?.houseId;
+  if (existing && requested && requested !== existing.houseId) return rejected('forbidden');
+
+  const houseId = existing?.houseId ?? requested;
+  if (!houseId) return m.op === 'delete' ? null : rejected('invalid');
+
+  const houseRole = await memberRole(q, houseId, user.uid);
+  if (!houseRole) return rejected('forbidden');
+
+  const allowed =
+    !def.access ||
+    def.access({
+      op: m.op,
+      data: m.data ?? {},
+      existing: existing?.data ?? null,
+      houseRole,
+      uid: user.uid,
+    });
+  if (!allowed) return rejected('forbidden');
+
+  const owner = { column: ownerColumn(def), value: houseId };
+  if (m.op === 'delete') {
+    await softDelete(q, def, key, owner);
+    return null;
+  }
+  const data = { ...m.data };
+  delete data.houseId; // posé via la colonne propriétaire
+  if (!(await upsert(q, def, key, owner, data))) return rejected('forbidden');
+  await def.afterWrite?.(q, key);
+  return null;
+}
+
+async function memberRole(q, houseId, uid) {
+  const rows = await q(
+    'SELECT role FROM house_members WHERE house_id = $1 AND user_id = $2 AND deleted_at IS NULL',
+    [houseId, uid],
+  );
+  return rows[0]?.role ?? null;
+}
+
+/** Ligne existante (même supprimée logiquement), champs du registre en camelCase. */
+async function readExisting(q, def, key) {
+  const fields = Object.entries(def.fields);
+  const rows = await q(
+    `SELECT ${ident(ownerColumn(def))}::text AS owner_key,
+            ${fields.map(([, f]) => ident(f.column)).join(', ')}
+     FROM ${ident(def.table)} WHERE ${ident(keyColumn(def))} = $1`,
+    [key],
+  );
+  if (!rows.length) return null;
+  const [row] = rows;
+  return {
+    houseId: row.owner_key,
+    data: Object.fromEntries(fields.map(([name, f]) => [name, row[f.column]])),
+  };
+}
+
 /**
  * UPDATE d'abord (patch partiel d'un document existant), INSERT sinon.
  * Un seul INSERT … ON CONFLICT ne suffit pas : Postgres vérifie les NOT NULL de la ligne
  * proposée avant le conflit, donc un patch { done: false } échouerait sur une ligne existante.
- * Retourne false si la clé existe déjà chez un autre utilisateur.
+ * Retourne false si la clé existe déjà chez un autre propriétaire.
  */
-async function upsert(q, def, key, uid, data) {
+async function upsert(q, def, key, owner, data) {
   const table = ident(def.table);
   const keyCol = ident(keyColumn(def));
+  const ownerCol = ident(owner.column);
   const entries = Object.entries(data).map(([field, value]) => [
     ident(def.fields[field].column),
     value,
   ]);
 
-  const sets = entries.map(([column], i) => `${column} = $${i + 3}`);
+  const sets = [
+    ...entries.map(([column], i) => `${column} = $${i + 3}`),
+    "version = nextval('change_seq')",
+    'updated_at = now()',
+    'deleted_at = NULL',
+  ];
   const updated = await q(
-    `UPDATE ${table}
-     SET ${[...sets, "version = nextval('change_seq')", 'updated_at = now()', 'deleted_at = NULL'].join(', ')}
-     WHERE ${keyCol} = $1 AND "user_id" = $2
+    `UPDATE ${table} SET ${sets.join(', ')}
+     WHERE ${keyCol} = $1 AND ${ownerCol} = $2
      RETURNING 1`,
-    [key, uid, ...entries.map(([, value]) => value)],
+    [key, owner.value, ...entries.map(([, value]) => value)],
   );
   if (updated.length) return true;
 
-  const columns = def.singleton ? ['"user_id"'] : ['"id"', '"user_id"'];
-  const values = def.singleton ? [uid] : [key, uid];
+  // Singleton : la clé EST la colonne propriétaire.
+  const columns = keyCol === ownerCol ? [ownerCol] : [keyCol, ownerCol];
+  const values = keyCol === ownerCol ? [owner.value] : [key, owner.value];
   for (const [column, value] of entries) {
     columns.push(column);
     values.push(value);
@@ -104,13 +189,26 @@ async function upsert(q, def, key, uid, data) {
 }
 
 // Suppression logique : la pierre tombale (deleted_at) se propage aux autres appareils.
-function softDelete(q, def, key, uid) {
+function softDelete(q, def, key, owner) {
   return q(
     `UPDATE ${ident(def.table)}
      SET deleted_at = now(), version = nextval('change_seq'), updated_at = now()
-     WHERE ${ident(keyColumn(def))} = $1 AND "user_id" = $2 AND deleted_at IS NULL`,
-    [key, uid],
+     WHERE ${ident(keyColumn(def))} = $1 AND ${ident(owner.column)} = $2 AND deleted_at IS NULL`,
+    [key, owner.value],
   );
+}
+
+/** Filtre SQL des lignes visibles par l'utilisateur ($1 = uid). */
+function visibilityFilter(def) {
+  if (!isHouseScoped(def)) return '"user_id" = $1';
+  const roles = (def.houseRoles ?? []).map((r) => {
+    if (!IDENT.test(r)) throw new Error(`Rôle invalide : ${r}`);
+    return `'${r}'`;
+  });
+  return `${ident(ownerColumn(def))} IN (
+    SELECT house_id FROM house_members
+    WHERE user_id = $1 AND deleted_at IS NULL${roles.length ? ` AND role IN (${roles.join(', ')})` : ''}
+  )`;
 }
 
 /**
@@ -131,7 +229,7 @@ export async function pullChanges(db, { user, role, collections }, cursor, limit
       `SELECT ${ident(keyColumn(def))}::text AS doc_key, version::text AS version,
               deleted_at IS NOT NULL AS deleted, ${select}
        FROM ${ident(def.table)}
-       WHERE "user_id" = $1 AND version > $2::bigint
+       WHERE ${visibilityFilter(def)} AND version > $2::bigint
        ORDER BY version
        LIMIT $3`,
       [user.uid, cursor, limit],

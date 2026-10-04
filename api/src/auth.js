@@ -41,14 +41,21 @@ export function createTokenVerifier({ projectId, emulator = false }) {
   };
 }
 
-/** Rôle côté serveur : seule source de vérité. Les colocs (members) arrivent en phase 4. */
-export function resolveRole(user, adminEmail) {
+/**
+ * Rôle côté serveur, seule source de vérité :
+ * admin = ADMIN_EMAIL ; member = membre actif d'au moins une maison ; sinon null.
+ */
+export async function resolveRole(db, user, adminEmail) {
   if (adminEmail && user.email === adminEmail) return 'admin';
-  return null;
+  const rows = await db.query(
+    'SELECT 1 FROM house_members WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1',
+    [user.uid],
+  );
+  return rows.length ? 'member' : null;
 }
 
 /** preHandler Fastify : request.user = { uid, email, name, role }. */
-export function makeAuthenticate({ verifyToken, adminEmail }) {
+export function makeAuthenticate({ verifyToken, adminEmail, db }) {
   return async function authenticate(request) {
     const header = request.headers.authorization ?? '';
     const match = /^Bearer ([\w-]+\.[\w-]+\.[\w-]*)$/.exec(header);
@@ -70,6 +77,6 @@ export function makeAuthenticate({ verifyToken, adminEmail }) {
       email: String(claims.email ?? '').toLowerCase(),
       name: typeof claims.name === 'string' ? claims.name : '',
     };
-    request.user = { ...user, role: resolveRole(user, adminEmail) };
+    request.user = { ...user, role: await resolveRole(db, user, adminEmail) };
   };
 }

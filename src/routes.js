@@ -1,7 +1,7 @@
 import { ROLE } from './lib/roles.js';
-import { comingSoon } from './views/common.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderHabits } from './views/habits.js';
+import { renderHouse } from './views/house/index.js';
 import { renderSettings } from './views/settings.js';
 import { renderTasks } from './views/tasks.js';
 import { renderToday } from './views/today.js';
@@ -9,7 +9,7 @@ import { renderToday } from './views/today.js';
 const ADMIN_ONLY = [ROLE.ADMIN];
 const HOUSE_ROLES = [ROLE.ADMIN, ROLE.MEMBER];
 
-// `default` : route d'atterrissage du rôle. Un coloc atterrira sur « house » (phase 4).
+// `default` : true (pour tous les rôles de la route) ou liste des rôles qui y atterrissent.
 export const ROUTES = [
   {
     path: 'today',
@@ -50,7 +50,8 @@ export const ROUTES = [
     icon: 'house',
     roles: HOUSE_ROLES,
     inNav: true,
-    render: comingSoon('Maison', 4),
+    default: [ROLE.MEMBER],
+    render: renderHouse,
   },
   {
     path: 'settings',

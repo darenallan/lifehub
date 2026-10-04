@@ -10,6 +10,7 @@ import { api } from './api.js';
 import { auth } from './firebase.js';
 import { cacheRole, readCachedRole, ROLE } from './lib/roles.js';
 import { endSession, startSession } from './session.js';
+import { deleteLocalData } from './sync/engine.js';
 import { getState, setState } from './store.js';
 
 const provider = new GoogleAuthProvider();
@@ -33,11 +34,37 @@ export function authErrorMessage(err) {
   return ERROR_MESSAGES[err?.code] ?? 'Connexion impossible. Réessaie.';
 }
 
+const hasDataAccess = (role) => role === ROLE.ADMIN || role === ROLE.MEMBER;
+
+/** Vrai si la liste des maisons a changé depuis la dernière fois (mémorisée par appareil). */
+function housesChanged(uid, houses) {
+  const key = `lifehub.houses.${uid}`;
+  const next = JSON.stringify(houses);
+  try {
+    const changed = localStorage.getItem(key) !== next;
+    localStorage.setItem(key, next);
+    return changed;
+  } catch {
+    return false;
+  }
+}
+
 /** Ouvre la session de données si le rôle y donne droit, puis publie le rôle. */
-async function applyRole(uid, role) {
+async function applyRole(uid, role, houses = null) {
+  const previous = readCachedRole(uid);
   cacheRole(uid, role);
-  if (role === ROLE.ADMIN) await startSession(uid);
-  else await endSession();
+  if (hasDataAccess(role)) {
+    const engine = await startSession(uid);
+    // Maison rejointe ou quittée : on retire tout depuis le début pour ne rien manquer.
+    if (houses && housesChanged(uid, houses)) {
+      await engine.resetCursor();
+      engine.syncNow();
+    }
+  } else {
+    await endSession();
+    // Accès retiré (coloc révoqué) : les données de maison gardées sur l'appareil sont effacées.
+    if (hasDataAccess(previous)) await deleteLocalData(uid);
+  }
   if (getState().user?.uid === uid) setState({ role, roleError: null });
 }
 
@@ -48,7 +75,7 @@ export async function refreshRole() {
   setState({ roleError: null });
   try {
     const me = await api('/api/me');
-    await applyRole(uid, me.role);
+    await applyRole(uid, me.role, me.houses);
   } catch (err) {
     if (err.status === 403) return applyRole(uid, ROLE.UNAUTHORIZED);
     if (!getState().role) {
@@ -74,7 +101,7 @@ export function initAuth() {
     };
     // Rôle connu sur cet appareil : l'app s'ouvre tout de suite, même hors ligne.
     const cached = readCachedRole(user.uid);
-    if (cached === ROLE.ADMIN) await startSession(user.uid);
+    if (hasDataAccess(cached)) await startSession(user.uid);
     setState({ authReady: true, user: profile, role: cached, authError: null });
     refreshRole();
   });

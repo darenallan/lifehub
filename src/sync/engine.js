@@ -173,6 +173,13 @@ export async function createSyncEngine({ uid, send, onPending, onRejected, onSta
     return entries.length === BATCH || res.hasMore || rejectedIds.size > 0;
   }
 
+  /** Prochaine sync = tirage complet (ex. maison rejointe : lignes plus anciennes que le curseur). */
+  function resetCursor() {
+    return transaction(db, ['meta'], 'readwrite', ({ meta }) => {
+      meta.put({ k: 'cursor', v: '0' });
+    });
+  }
+
   function close() {
     closed = true;
     clearTimeout(timer);
@@ -181,5 +188,5 @@ export async function createSyncEngine({ uid, send, onPending, onRejected, onSta
   }
 
   await refreshPending();
-  return { get, getAll, patch, remove, subscribe, syncNow, close };
+  return { get, getAll, patch, remove, subscribe, syncNow, resetCursor, close };
 }

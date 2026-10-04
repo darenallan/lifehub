@@ -38,6 +38,11 @@ export function checkValue(schema, value) {
       if (schema.minimum != null && value < schema.minimum) return 'trop petit';
       if (schema.maximum != null && value > schema.maximum) return 'trop grand';
       return null;
+    case 'number':
+      if (typeof value !== 'number' || !Number.isFinite(value)) return 'doit être un nombre';
+      if (schema.minimum != null && value < schema.minimum) return 'trop petit';
+      if (schema.maximum != null && value > schema.maximum) return 'trop grand';
+      return null;
     case 'boolean':
       return typeof value === 'boolean' ? null : 'doit être un booléen';
     default:

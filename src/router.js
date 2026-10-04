@@ -6,8 +6,11 @@ export function parseHash(hash) {
   return { path, params };
 }
 
+/** default: true (pour tous les rôles de la route) ou liste des rôles qui y atterrissent. */
 export function defaultPath(routes, role) {
-  return routes.find((r) => r.roles.includes(role) && r.default)?.path ?? null;
+  const isDefault = (r) =>
+    r.default === true || (Array.isArray(r.default) && r.default.includes(role));
+  return routes.find((r) => r.roles.includes(role) && isDefault(r))?.path ?? null;
 }
 
 /** Route autorisée pour ce rôle, sinon la route par défaut du rôle. */

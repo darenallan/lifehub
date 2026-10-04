@@ -7,6 +7,39 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const WEEK = /^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/;
+const EVERYONE = ['admin', 'member'];
+const quantity = { type: 'number', minimum: 0, maximum: 999999 };
+
+const PAYMENT_FIELDS = new Set(['paid', 'paidOn', 'paidBy']);
+
+/**
+ * Factures : l'admin de la maison fait tout. Un coloc ne peut que marquer une facture
+ * existante payée (à son nom) ou non payée ; ni création, ni suppression, ni autre champ.
+ */
+function billAccess({ op, data, existing, houseRole, uid }) {
+  if (houseRole === 'admin') return true;
+  if (op !== 'patch' || !existing) return false;
+  if (!Object.keys(data).every((k) => PAYMENT_FIELDS.has(k))) return false;
+  const paid = data.paid ?? existing.paid;
+  const paidBy = 'paidBy' in data ? data.paidBy : existing.paidBy;
+  return paid ? paidBy === uid : paidBy == null;
+}
+
+/** Facture récurrente payée → occurrence suivante créée une seule fois (previous_id unique). */
+function createNextBill(q, id) {
+  return q(
+    `INSERT INTO bills (id, house_id, label, amount, due_date, recurrence, paid, previous_id)
+     SELECT gen_random_uuid(), house_id, label, amount,
+            to_char(due_date::date + CASE recurrence WHEN 'monthly' THEN interval '1 month'
+                                                     ELSE interval '1 year' END, 'YYYY-MM-DD'),
+            recurrence, false, id
+     FROM bills
+     WHERE id = $1 AND paid AND recurrence IS NOT NULL AND deleted_at IS NULL
+     ON CONFLICT (previous_id) DO NOTHING`,
+    [id],
+  );
+}
 
 const ADMIN = ['admin'];
 const day = { column: 'day', schema: { type: 'string', pattern: DAY } };
@@ -145,6 +178,108 @@ export const COLLECTIONS = {
         schema: { enum: ['daily', 'weekly', 'monthly'], nullable: true },
       },
       doneOn: { column: 'done_on', schema: { type: 'string', pattern: DAY, nullable: true } },
+    },
+  },
+
+  // ---------- Phase 4 : maison partagée ----------
+  // scope 'house' : visibles et modifiables par les membres actifs de la maison (voir sync.js).
+  // readOnly : modifiés uniquement par les routes dédiées (house.js).
+  house: {
+    table: 'houses',
+    scope: 'house',
+    houseColumn: 'id',
+    roles: EVERYONE,
+    readOnly: true,
+    fields: {
+      name: { column: 'name', schema: { type: 'string' } },
+      adminUid: { column: 'admin_uid', schema: { type: 'string' } },
+    },
+  },
+
+  houseMember: {
+    table: 'house_members',
+    scope: 'house',
+    roles: EVERYONE,
+    readOnly: true,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      userId: { column: 'user_id', schema: { type: 'string' } },
+      role: { column: 'role', schema: { type: 'string' } },
+      email: { column: 'email', schema: { type: 'string' } },
+      displayName: { column: 'display_name', schema: { type: 'string', nullable: true } },
+    },
+  },
+
+  // Invitations en attente : visibles par l'admin de la maison seulement.
+  houseInvite: {
+    table: 'house_invites',
+    scope: 'house',
+    houseRoles: ['admin'],
+    roles: ['admin'],
+    readOnly: true,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      email: { column: 'email', schema: { type: 'string' } },
+    },
+  },
+
+  stockItem: {
+    table: 'stock_items',
+    scope: 'house',
+    roles: EVERYONE,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      name: { column: 'name', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+      qty: { column: 'qty', schema: quantity },
+      unit: { column: 'unit', schema: { type: 'string', maxLength: 16, nullable: true } },
+      minQty: { column: 'min_qty', schema: { ...quantity, nullable: true } },
+      location: { column: 'location', schema: { type: 'string', maxLength: 40, nullable: true } },
+    },
+  },
+
+  // Id déterministe côté client (maison + semaine + jour + repas).
+  menuEntry: {
+    table: 'menu_entries',
+    scope: 'house',
+    roles: EVERYONE,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      week: { column: 'week', schema: { type: 'string', pattern: WEEK } },
+      day: { column: 'day', schema: { enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] } },
+      meal: { column: 'meal', schema: { enum: ['lunch', 'dinner'] } },
+      dish: { column: 'dish', schema: { type: 'string', maxLength: 80, nullable: true } },
+    },
+  },
+
+  bill: {
+    table: 'bills',
+    scope: 'house',
+    roles: EVERYONE,
+    access: billAccess,
+    afterWrite: createNextBill,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      label: { column: 'label', schema: { type: 'string', minLength: 1, maxLength: 80 } },
+      amount: { column: 'amount', schema: money },
+      dueDate: { column: 'due_date', schema: { type: 'string', pattern: DAY } },
+      recurrence: { column: 'recurrence', schema: { enum: ['monthly', 'yearly'], nullable: true } },
+      paid: { column: 'paid', schema: { type: 'boolean' } },
+      paidOn: { column: 'paid_on', schema: { type: 'string', pattern: DAY, nullable: true } },
+      paidBy: { column: 'paid_by', schema: { type: 'string', maxLength: 128, nullable: true } },
+    },
+  },
+
+  shoppingItem: {
+    table: 'shopping_items',
+    scope: 'house',
+    roles: EVERYONE,
+    fields: {
+      houseId: { column: 'house_id', schema: uuid },
+      name: { column: 'name', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+      qty: { column: 'qty', schema: { type: 'string', maxLength: 20, nullable: true } },
+      checked: { column: 'checked', schema: { type: 'boolean' } },
+      source: { column: 'source', schema: { enum: ['manual', 'stock', 'menu'] } },
+      stockId: { column: 'stock_id', schema: { ...uuid, nullable: true } },
     },
   },
 };
