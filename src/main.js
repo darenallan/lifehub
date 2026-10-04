@@ -3,7 +3,7 @@ import './styles/base.css';
 import './styles/components.css';
 
 import { registerSW } from 'virtual:pwa-register';
-import { initAuth } from './auth.js';
+import { initAuth, logout, refreshRole } from './auth.js';
 import { createNav } from './components/nav.js';
 import { createOfflineBadge } from './components/offlineBadge.js';
 import { showToast } from './components/toast.js';
@@ -65,9 +65,34 @@ function renderShell(state) {
   router.render();
 }
 
-/** Ne reconstruit l'écran que si l'identité, le rôle ou l'erreur de connexion change. */
+function renderWaitingForRole(state) {
+  const body = state.roleError
+    ? [
+        h('p', { class: 'error', role: 'alert' }, state.roleError),
+        h(
+          'button',
+          { class: 'btn btn--primary', type: 'button', onclick: refreshRole },
+          'Réessayer',
+        ),
+        h(
+          'button',
+          { class: 'btn btn--ghost', type: 'button', onclick: () => logout() },
+          'Changer de compte',
+        ),
+      ]
+    : [
+        h('span', { class: 'spinner', role: 'progressbar', 'aria-label': 'Chargement' }),
+        // Premier appel après une période d'inactivité : Render redémarre le serveur.
+        h('p', { class: 'muted' }, "Connexion au serveur… (jusqu'à une minute au réveil)"),
+      ];
+  return h('main', { class: 'center-screen' }, h('div', { class: 'auth-card' }, body));
+}
+
+/** Ne reconstruit l'écran que si l'identité, le rôle ou une erreur change. */
 function renderApp(state) {
-  const key = [state.authReady, state.user?.uid, state.role, state.authError].join('|');
+  const key = [state.authReady, state.user?.uid, state.role, state.authError, state.roleError].join(
+    '|',
+  );
   if (key === screenKey) return;
   screenKey = key;
   teardownShell();
@@ -83,6 +108,8 @@ function renderApp(state) {
     );
   } else if (!state.user) {
     mount(root, renderLogin(state));
+  } else if (!state.role) {
+    mount(root, renderWaitingForRole(state));
   } else if (state.role === ROLE.UNAUTHORIZED) {
     mount(root, renderUnauthorized(state));
   } else {

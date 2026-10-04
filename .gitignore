@@ -24,3 +24,9 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 *.log
+
+# api
+api/node_modules/
+api/.data/
+api/.env
+.vercel/

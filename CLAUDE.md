@@ -16,51 +16,60 @@ Fonctionne hors ligne ; dès que le réseau revient, tout se synchronise automat
 
 ## 2. Stack et contraintes (non négociables)
 
+- **Objectif 0 coût** : uniquement des offres gratuites, aucun service payant.
 - **HTML / CSS / JS vanilla (ES modules)**. Pas de framework UI. Bundler : **Vite** (vanilla) + **vite-plugin-pwa** (Workbox, `generateSW`).
-- **Firebase** : Auth (Google uniquement), Firestore, Hosting. SDK modulaire v10+ installé via npm (pas de CDN, pour que tout soit mis en cache hors ligne).
-- **Offline** : `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })`. Les écritures hors ligne sont mises en file et envoyées au retour du réseau (à la prochaine ouverture de l'app si elle a été fermée : pas de promesse de sync en arrière-plan, surtout sur iOS).
+- **Hébergement** : front sur **Vercel** (déployé depuis GitHub), API sur **Render** (offre gratuite, s'endort après 15 min : prévoir ~1 min de réveil), base **Neon** (Postgres, offre gratuite).
+- **Firebase = Auth uniquement** (Google). Paquets `@firebase/app` + `@firebase/auth` via npm (pas le méta-paquet `firebase`, qui embarque Firestore). Pas de Firestore, pas de Firebase Hosting.
+- **API** (`api/`) : Node + **Fastify**, `pg` vers Neon, vérification des ID tokens Firebase avec `jose` (JWKS Google). Migrations SQL versionnées (`api/migrations/NNN_nom.sql`), appliquées au démarrage. En local sans `DATABASE_URL` : **PGlite** (Postgres WASM) dans `api/.data/`.
+- **Offline** (fait maison) : base locale IndexedDB par utilisateur + file d'écritures (`outbox`) synchronisée par `POST /api/sync` (patchs par champ, mutations idempotentes à UUID client, curseur de version global, suppression logique). Les vues lisent/écrivent toujours en local. Sync au démarrage, au retour du réseau, au retour au premier plan et toutes les 60 s ; pas de sync en arrière-plan (surtout iOS).
 - **Graphiques** : SVG maison (barres, anneau, ligne). Aucune lib de charts.
 - **Mobile-first**, responsive : barre de navigation en bas sur mobile, sidebar sur desktop. Thème sombre par défaut + clair. Esthétique sobre noir/blanc, un seul accent de couleur, typographie propre.
-- **Dates** : jour = chaîne locale `YYYY-MM-DD` calculée sur l'appareil. Mois = `YYYY-MM`. Semaine ISO = `YYYY-Www`. Timestamps techniques via `serverTimestamp()`.
-- **Argent** : entiers en FCFA, formatage `Intl.NumberFormat('fr-FR')`. Jamais de flottants.
-- Qualité : ESLint + Prettier, Vitest pour la logique pure, tests des règles Firestore sur l'émulateur.
+- **Dates** : jour = chaîne locale `YYYY-MM-DD` calculée sur l'appareil. Mois = `YYYY-MM`. Semaine ISO = `YYYY-Www`. Timestamps techniques posés par Postgres (`now()`).
+- **Argent** : entiers en FCFA, formatage `Intl.NumberFormat('fr-FR')`. Jamais de flottants (`integer`/`bigint` en base).
+- Qualité : ESLint + Prettier, Vitest pour la logique pure (front) et pour l'API (`app.inject` + PGlite en mémoire : auth, droits, validation, sync).
 
 ## 3. Arborescence cible
 
 ```
 /
 ├─ CLAUDE.md  BRIEF.md
-├─ firebase.json  firestore.rules  firestore.indexes.json  .firebaserc
-├─ vite.config.js  package.json  .env.example  .gitignore
+├─ vercel.json (CSP + headers)  render.yaml (blueprint API)  firebase.json (émulateur Auth local)
+├─ vite.config.js  package.json  .env.example  .gitignore  .vercelignore
 ├─ public/ (icons 192/512 + maskable, favicon)
-├─ src/
+├─ src/                  # front (Vercel)
 │  ├─ main.js            # bootstrap, SW, routeur
-│  ├─ firebase.js        # init app/auth/firestore (config via import.meta.env)
-│  ├─ router.js          # routeur hash (#/today, #/habits…)
-│  ├─ store.js           # état global minimal (user, role, online, pendingWrites)
-│  ├─ auth.js            # login Google, logout, garde de routes
-│  ├─ lib/ (dates.js, money.js, dom.js, charts.js)
-│  ├─ repos/ (habits.js, expenses.js, tasks.js, house.js)   # TOUT accès Firestore ici
+│  ├─ firebase.js        # init app + auth (config via import.meta.env)
+│  ├─ api.js             # fetch authentifié vers l'API (jeton Firebase, délai de réveil Render)
+│  ├─ session.js         # session de données : moteur de sync + déclencheurs
+│  ├─ sync/ (engine.js, merge.js)   # IndexedDB + outbox ; merge.js = logique pure testée
+│  ├─ router.js  routes.js  store.js  auth.js
+│  ├─ lib/ (dates.js, money.js, dom.js, idb.js, charts.js…)
+│  ├─ repos/ (profile.js, habits.js, expenses.js, tasks.js, house.js)   # TOUT accès données ici
 │  ├─ views/ (today.js, habits.js, expenses.js, tasks.js, house/*.js, settings.js)
 │  ├─ components/ (nav.js, modal.js, toast.js, offlineBadge.js)
 │  └─ styles/ (tokens.css, base.css, components.css)
-└─ tests/ (unit/, rules/)
+├─ api/                  # backend (Render)
+│  ├─ src/ (server.js, app.js, config.js, db.js, migrate.js, auth.js, routes.js, sync.js, collections.js, validate.js)
+│  ├─ migrations/ (001_init.sql…)
+│  └─ tests/
+└─ tests/unit/
 ```
 
-Règle : les vues n'appellent jamais Firestore directement, uniquement les `repos/`.
+Règles : les vues n'appellent jamais l'API ni IndexedDB directement, uniquement les `repos/`. Chaque nouvelle collection = une migration SQL + une entrée dans `api/src/collections.js` (champs, schéma, rôles) + un repo.
 
-## 4. Modèle de données Firestore
+## 4. Modèle de données (tables Postgres)
+
+Modèle logique ci-dessous ; chaque collection devient une table avec `user_id` (ou `house_id`), `version bigint DEFAULT nextval('change_seq')`, `updated_at`, `deleted_at` (suppression logique), des contraintes `CHECK` reprenant la validation, et un index `(user_id, version)`. Les identifiants de documents sont des UUID générés par le client (sauf singletons comme le profil). Les cases d'habitudes seront des lignes `(habit_id, day)` plutôt qu'une map, pour éviter les conflits entre appareils.
 
 **Espace perso (admin uniquement)** — `users/{uid}/…`
 
 - `habits/{habitId}` : `{ name, emoji, order, active, createdAt }`
-- `habitLogs/{YYYY-MM}` : `{ checks: { [habitId]: { "01": true, "02": true } }, mood: { "01": 1..5 }, sleep: { "01": heures } }`
-  Mise à jour avec des **chemins pointés** (`updateDoc(ref, { ["checks."+id+"."+dd]: true })`) pour éviter les conflits entre appareils.
+- `habitLogs` : une ligne par case cochée `(habitId, day:'YYYY-MM-DD', done)` + une ligne par jour pour `mood` (1..5) et `sleep` (heures).
 - `expenses/{id}` : `{ amount:int>0, categoryId, note, date:'YYYY-MM-DD', createdAt, updatedAt }`
 - `categories/{id}` : `{ name, emoji, color, monthlyBudget:int }`
 - `tasks/{id}` : `{ title, done, priority:1..3, dueDate|null, recurrence:null|'daily'|'weekly'|'monthly', createdAt, doneAt }`
 - `dailyGoals/{YYYY-MM-DD}` : `{ items: [{ text, done }] }` (max 5)
-- `settings/profile` : `{ displayName, currency:'XOF', theme }`
+- `profile` (table `profiles`, singleton `docId:'me'`) : `{ displayName, currency:'XOF', theme }` — créé côté serveur au premier `GET /api/me`.
 
 **Maison (partagée)** — `houses/{houseId}`
 
@@ -71,7 +80,7 @@ Règle : les vues n'appellent jamais Firestore directement, uniquement les `repo
 - `bills/{id}` : `{ label, amount:int, dueDate, recurrence:null|'monthly'|'yearly', paid, paidAt, paidBy }`
 - `shopping/{id}` : `{ name, qty, checked, source:'manual'|'stock'|'menu' }`
 
-**Invitations (top-level)** — `invites/{emailMinuscule}` : `{ houseId, createdAt }` (écrit par l'admin uniquement).
+**Invitations** — table `invites (email minuscule PK, house_id, created_at)` (écrite par l'admin uniquement ; l'adhésion se fait côté API dans une transaction : création du membre + suppression de l'invitation).
 
 ## 5. Rôles et accès (important)
 
@@ -83,7 +92,7 @@ Règle : les vues n'appellent jamais Firestore directement, uniquement les `repo
 
 ## 6. Sécurité by design (OWASP) — à respecter dès la phase 0
 
-**Firestore rules** (fichier `firestore.rules`, squelette à affiner + tester) :
+**Autorisation côté API** (remplace les règles Firestore) : chaque route vérifie le jeton Firebase (signature RS256 via JWKS Google, `iss`/`aud` = projet, `email_verified`), puis le rôle **calculé côté serveur** (`ADMIN_EMAIL` en variable d'env Render ; membership en base pour les colocs). L'`uid` vient toujours du jeton, jamais du corps. Chaque requête SQL filtre par `user_id`/`house_id`. Validation à deux niveaux : schéma JSON (Fastify, `additionalProperties:false`, pas de coercition) + validateur de champs du registre, puis contraintes `CHECK` Postgres. Requêtes 100 % paramétrées. Les règles ci-dessous restent la **spécification des droits** à reproduire dans l'API et à couvrir par des tests :
 
 ```
 rules_version = '2';
@@ -130,31 +139,32 @@ service cloud.firestore {
 }
 ```
 
-À compléter : validation de schéma sur chaque collection (`keys().hasOnly`, types, `amount is int && amount > 0 && amount < 1000000000`, longueurs de chaînes bornées, `items.size() <= 5`). Création de la maison + du premier `members/{adminUid}` en deux écritures successives (ou `getAfter()`).
+Validation attendue sur chaque collection : champs autorisés uniquement, types, `amount` entier dans ]0, 1 000 000 000[, longueurs de chaînes bornées, 5 objectifs du jour max. Création de la maison + du premier membre admin dans une même transaction SQL.
 
 **Autres exigences :**
 
 - **Injection/XSS** : jamais `innerHTML` avec des données utilisateur ; utiliser `textContent` / création de nœuds DOM. Un helper `dom.js` centralise ça.
-- **CSP stricte** via `firebase.json` (headers) : `default-src 'self'`, **pas de `'unsafe-inline'` ni `'unsafe-eval'` sur `script-src`**, `connect-src` limité aux domaines Firebase/Google, `frame-src` pour Google Sign-In (ajuster en testant), `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`. Ajouter `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimale. Cache : `sw.js` en `no-cache`, assets hashés en `immutable`.
-- **Secrets** : la config Firebase web n'est pas secrète mais vit dans `.env` (non commité, `.env.example` fourni). Restreindre la clé API par référents HTTP côté Google Cloud. Aucun secret serveur dans le repo. `.gitignore` complet.
-- **Auth** : Google uniquement, e-mail vérifié obligatoire ; déconnexion qui vide le cache local sensible (option) ; pas de rôle stocké côté client comme source de vérité (le rôle vient des règles/membership).
-- **App Check** (reCAPTCHA v3) : à activer en phase 6.
-- **Dépendances** : minimum ; `npm audit` à chaque phase ; versions verrouillées.
-- **Environnements** : émulateurs Firebase en local, liés à `127.0.0.1` uniquement (jamais `0.0.0.0`). Aucun port exposé inutilement.
+- **CSP stricte** via `vercel.json` (headers) : `default-src 'self'`, **pas de `'unsafe-inline'` ni `'unsafe-eval'` sur `script-src`**, `connect-src` limité à l'API Render et aux domaines Firebase Auth/Google, `frame-src` pour Google Sign-In, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`. Plus `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimale. Cache : `sw.js`/`index.html` en `no-cache`, assets hashés en `immutable`.
+- **API** : CORS limité à `ALLOWED_ORIGINS`, `helmet`, rate limit (120 req/min/IP), corps ≤ 256 Ko, erreurs génériques (pas de stack exposée), logs sans en-tête `Authorization`.
+- **Secrets** : la config Firebase web n'est pas secrète mais vit dans `.env` (non commité, `.env.example` fourni). Restreindre la clé API par référents HTTP côté Google Cloud. `DATABASE_URL` et `ADMIN_EMAIL` uniquement dans les variables d'env Render (`api/.env` en local, non commité). `.gitignore` complet.
+- **Auth** : Google uniquement, e-mail vérifié obligatoire ; déconnexion qui peut effacer la base locale (IndexedDB) ; le rôle vient de `GET /api/me` (le cache local du rôle sert seulement à ouvrir l'app hors ligne et ne donne accès à aucune donnée serveur).
+- **App Check** : non applicable à une API maison sans coût ; en phase 6, durcir plutôt l'API (rate limit par uid, journalisation des refus).
+- **Dépendances** : minimum ; `npm audit` à chaque phase (front et `api/`) ; versions verrouillées.
+- **Environnements** : en local, API et émulateur Auth liés à `127.0.0.1` uniquement. L'API n'écoute sur `0.0.0.0` que sur Render (variable `RENDER`), et refuse de démarrer en prod avec `FIREBASE_AUTH_EMULATOR_HOST`.
 - **Vie privée** : l'export de données (JSON) est local à l'utilisateur ; rien n'est envoyé à un tiers, aucun tracker.
 
 ## 7. PWA et offline
 
 - `manifest` : `display: standalone`, `lang: fr`, icônes 192/512 + maskable, `theme_color`, `shortcuts` (« Dépense rapide » → `#/expenses/new`, « Aujourd'hui » → `#/today`).
 - Service worker (Workbox) : précache du shell + assets ; stratégie réseau-d'abord/cache-fallback pour la navigation ; mise à jour avec bandeau « Nouvelle version disponible — recharger ».
-- Indicateur **Hors ligne / En attente de sync (n)** basé sur `navigator.onLine` + `snapshot.metadata.hasPendingWrites`.
-- Tout écran doit rendre correctement **sans réseau** à partir du cache Firestore.
+- Indicateur **Hors ligne / En attente de sync (n)** basé sur `navigator.onLine` + taille de l'`outbox`.
+- Tout écran doit rendre correctement **sans réseau** à partir de la base locale IndexedDB. Les appels API ne sont jamais mis en cache par le service worker.
 
 ## 8. Phases de livraison
 
 Chaque phase : code, tests, `npm run lint && npm test`, commit clair (`feat(habits): …`), puis court récap de ce qui marche.
 
-- **Phase 0 — Socle** : Vite + PWA + Firebase init, auth Google, routeur, shell responsive (nav bas/sidebar), thème, badge offline, règles Firestore de base + tests, `firebase.json` avec headers de sécurité, déploiement Hosting. Écran « Aujourd'hui » vide mais branché.
+- **Phase 0 — Socle** : Vite + PWA + Firebase Auth, routeur, shell responsive (nav bas/sidebar), thème, badge offline, API Fastify (auth, `/api/me`, `/api/sync`, migrations) + tests, moteur de sync IndexedDB, `vercel.json` avec headers de sécurité, `render.yaml`. Écran « Aujourd'hui » vide mais branché (profil synchronisé).
 - **Phase 1 — Habit tracker** : CRUD habitudes, grille mensuelle (mobile : vue semaine défilante, colonne des noms sticky ; desktop : mois complet), % par jour + par semaine (barres SVG), anneau global (objectif = habitudes actives × jours du mois), tableau Analyse (objectif/réalisé/restant/%), top habitudes, humeur 1–5 + sommeil, navigation entre mois. Logique de calcul dans `lib/` avec tests Vitest.
 - **Phase 2 — Dépenses** : bouton d'ajout rapide (montant → catégorie → ok), liste par jour, catégories + budgets mensuels avec jauge, graphiques (par catégorie, par jour), total du mois, édition/suppression, dépenses récurrentes.
 - **Phase 3 — Objectifs du jour + tâches** : 1–5 objectifs du jour cochables, tâches avec priorité/échéance/récurrence, vues Aujourd'hui / À venir / Terminées, rappels in-app (notifications locales si permission accordée).
@@ -165,20 +175,20 @@ Chaque phase : code, tests, `npm run lint && npm test`, commit clair (`feat(habi
 ## 9. Commandes de référence
 
 ```bash
-npm create vite@latest lifehub -- --template vanilla && cd lifehub
-npm i firebase && npm i -D vite-plugin-pwa vitest eslint prettier @firebase/rules-unit-testing firebase-tools
-cp .env.example .env            # puis renseigner la config Firebase
-npm run dev                     # dev local
-npm run lint && npm test        # qualité
-npx firebase emulators:start --only auth,firestore,hosting   # émulateurs (127.0.0.1)
-npm run build && npx firebase deploy --only hosting,firestore:rules,firestore:indexes
+npm ci && npm --prefix api ci   # dépendances front + API
+cp .env.example .env && cp api/.env.example api/.env   # puis renseigner
+npm run emulators               # émulateur Auth (CLI firebase globale : npm i -g firebase-tools)
+npm run dev:api                 # API sur http://127.0.0.1:8787 (PGlite local si DATABASE_URL vide)
+npm run dev                     # front sur http://127.0.0.1:7070
+npm run check                   # lint + tests front + tests API
+# Déploiement : push sur GitHub → Vercel (front) et Render (api/, render.yaml) redéploient seuls.
 ```
 
 ## 10. Façon de travailler
 
 - Avant de coder une phase : annonce en 5 lignes max ce que tu vas faire.
-- Pose-moi une question seulement si c'est bloquant (ex. `ADMIN_EMAIL`, identifiants du projet Firebase). Sinon, choisis un défaut raisonnable et note-le.
-- Je fais moi-même les étapes console (création du projet Firebase, activation Auth Google, déploiement) : donne-moi les commandes/étapes exactes plutôt que de les inventer.
-- Ne jamais supprimer de données, committer de secrets, ni désactiver une règle de sécurité « pour tester ».
+- Pose-moi une question seulement si c'est bloquant (ex. `ADMIN_EMAIL`, identifiants du projet Firebase, URL Render). Sinon, choisis un défaut raisonnable et note-le.
+- Je fais moi-même les étapes console (Firebase Auth, Neon, Render, Vercel, GitHub) : donne-moi les commandes/étapes exactes plutôt que de les inventer.
+- Ne jamais supprimer de données, committer de secrets, ni désactiver un contrôle de sécurité de l'API « pour tester ».
 - Code propre et modulaire, fonctions courtes, noms explicites, commentaires uniquement quand le « pourquoi » n'est pas évident.
 - Termine chaque phase par : ce qui marche, comment le tester (commandes), ce qui reste.

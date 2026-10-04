@@ -1,13 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth } from 'firebase/auth';
-import {
-  clearIndexedDbPersistence,
-  connectFirestoreEmulator,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  terminate,
-} from 'firebase/firestore';
+// Firebase ne sert qu'à l'authentification Google ; les données passent par l'API (Neon).
+import { initializeApp } from '@firebase/app';
+import { connectAuthEmulator, getAuth } from '@firebase/auth';
 
 const env = import.meta.env;
 
@@ -24,17 +17,7 @@ if (!config.apiKey || !config.projectId) {
 
 export const app = initializeApp(config);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-});
 
-if (env.VITE_USE_EMULATORS === 'true') {
+if (env.VITE_USE_AUTH_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-  connectFirestoreEmulator(db, '127.0.0.1', 8080);
-}
-
-/** Vide le cache Firestore local (IndexedDB). L'instance est inutilisable ensuite : recharger. */
-export async function clearLocalCache() {
-  await terminate(db);
-  await clearIndexedDbPersistence(db);
 }

@@ -12,7 +12,7 @@ const THEMES = [
   { value: 'light', label: 'Clair' },
 ];
 
-function themeSwitch(uid) {
+function themeSwitch() {
   const buttons = THEMES.map(({ value, label }) =>
     h(
       'button',
@@ -25,7 +25,7 @@ function themeSwitch(uid) {
           setTheme(value);
           for (const b of buttons)
             b.setAttribute('aria-pressed', String(b.dataset.value === value));
-          saveProfile(uid, { theme: value }).catch(reportError);
+          saveProfile({ theme: value }).catch(reportError);
         },
       },
       label,
@@ -34,7 +34,7 @@ function themeSwitch(uid) {
   return h('div', { class: 'segmented', role: 'group', 'aria-label': 'Thème' }, buttons);
 }
 
-function nameForm(uid) {
+function nameForm() {
   const input = h('input', {
     class: 'input',
     id: 'displayName',
@@ -49,7 +49,7 @@ function nameForm(uid) {
       onsubmit: (e) => {
         e.preventDefault();
         const displayName = input.value.trim().slice(0, 60);
-        saveProfile(uid, { displayName }).catch(reportError);
+        saveProfile({ displayName }).catch(reportError);
         showToast('Nom enregistré');
       },
     },
@@ -72,7 +72,7 @@ async function confirmWipe() {
 }
 
 export function renderSettings(outlet, { user }) {
-  const { form, input } = nameForm(user.uid);
+  const { form, input } = nameForm();
 
   const accountActions = h(
     'div',
@@ -97,7 +97,7 @@ export function renderSettings(outlet, { user }) {
       'div',
       { class: 'stack' },
       card({ title: 'Profil', body: [h('p', { class: 'muted' }, 'Prénom affiché'), form] }),
-      card({ title: 'Apparence', body: themeSwitch(user.uid) }),
+      card({ title: 'Apparence', body: themeSwitch() }),
       card({
         title: 'Compte',
         body: [
@@ -109,11 +109,7 @@ export function renderSettings(outlet, { user }) {
     ),
   );
 
-  return watchProfile(
-    user.uid,
-    (profile) => {
-      if (document.activeElement !== input) input.value = profile?.displayName ?? '';
-    },
-    reportError,
-  );
+  return watchProfile((profile) => {
+    if (document.activeElement !== input) input.value = profile?.displayName ?? '';
+  }, reportError);
 }

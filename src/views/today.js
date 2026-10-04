@@ -1,8 +1,7 @@
 import { reportError } from '../components/toast.js';
 import { formatLongDate } from '../lib/dates.js';
 import { h, mount } from '../lib/dom.js';
-import { getTheme } from '../lib/theme.js';
-import { saveProfile, watchProfile } from '../repos/profile.js';
+import { watchProfile } from '../repos/profile.js';
 import { card, emptyState, pageHeader } from './common.js';
 
 const firstName = (displayName) => (displayName ?? '').trim().split(/\s+/)[0] ?? '';
@@ -34,20 +33,9 @@ export function renderToday(outlet, { user }) {
 
   mount(outlet, header, grid);
 
-  return watchProfile(
-    user.uid,
-    (profile, { fromCache }) => {
-      // Premier lancement : profil créé seulement si le serveur confirme qu'il n'existe pas.
-      if (!profile && !fromCache) {
-        saveProfile(user.uid, {
-          displayName: firstName(user.displayName).slice(0, 60),
-          currency: 'XOF',
-          theme: getTheme(),
-        }).catch(reportError);
-      }
-      const name = profile?.displayName || firstName(user.displayName);
-      title.textContent = name ? `Bonjour ${name}` : 'Bonjour';
-    },
-    reportError,
-  );
+  // Le profil est créé côté serveur au premier GET /api/me, puis arrive par la sync.
+  return watchProfile((profile) => {
+    const name = profile?.displayName || firstName(user.displayName);
+    title.textContent = name ? `Bonjour ${name}` : 'Bonjour';
+  }, reportError);
 }

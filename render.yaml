@@ -1,0 +1,23 @@
+# Blueprint Render : API Node, offre gratuite (s endort apres 15 min sans requete).
+services:
+  - type: web
+    name: lifehub-api
+    runtime: node
+    plan: free
+    rootDir: api
+    # --include=prod remplace le include=dev du .npmrc local : pas de devDependencies en prod.
+    buildCommand: npm ci --include=prod --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

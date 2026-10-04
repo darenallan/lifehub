@@ -1,12 +1,14 @@
-// État global minimal. Pas de rôle « de confiance » ici : voir lib/roles.js.
+// État global minimal. Le rôle affiché vient de l'API (voir auth.js), qui reste seule juge.
 
 const state = {
   authReady: false,
   user: null, // { uid, email, displayName, photoURL }
-  role: null,
+  role: null, // null = pas encore connu (premier lancement, serveur en réveil)
+  roleError: null,
   authError: null,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
-  pending: {}, // { [cléDeListener]: nombre de docs avec écritures en attente }
+  syncStatus: 'idle', // 'idle' | 'syncing' | 'error'
+  pending: {}, // { [source]: nombre d'écritures en attente }
 };
 
 const listeners = new Set();
@@ -25,7 +27,7 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-/** Alimenté par les repos à partir de snapshot.metadata.hasPendingWrites. */
+/** Alimenté par le moteur de sync (taille de l'outbox). */
 export function setPending(key, count) {
   if ((state.pending[key] ?? 0) === count) return;
   setState({ pending: { ...state.pending, [key]: count } });

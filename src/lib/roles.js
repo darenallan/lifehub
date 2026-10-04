@@ -4,15 +4,24 @@ export const ROLE = Object.freeze({
   UNAUTHORIZED: 'unauthorized',
 });
 
-/**
- * Rôle d'affichage uniquement (quel shell montrer). La source de vérité reste
- * firestore.rules : un rôle mal déduit ici ne donne accès à aucune donnée.
- * La détection des colocs (members/{uid}) arrive en phase 4.
- */
-export function resolveRole(user, adminEmail) {
-  if (!user) return null;
-  if (!user.emailVerified) return ROLE.UNAUTHORIZED;
-  const email = (user.email ?? '').toLowerCase();
-  if (adminEmail && email === adminEmail.toLowerCase()) return ROLE.ADMIN;
-  return ROLE.UNAUTHORIZED;
+// Le rôle est décidé par l'API (GET /api/me). On le garde en cache par appareil
+// pour pouvoir ouvrir l'app hors ligne ; ce cache ne donne accès à aucune donnée serveur.
+const key = (uid) => `lifehub.role.${uid}`;
+
+export function readCachedRole(uid) {
+  try {
+    const value = localStorage.getItem(key(uid));
+    return Object.values(ROLE).includes(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function cacheRole(uid, role) {
+  try {
+    if (role) localStorage.setItem(key(uid), role);
+    else localStorage.removeItem(key(uid));
+  } catch {
+    // stockage indisponible : le rôle sera redemandé au prochain lancement
+  }
 }

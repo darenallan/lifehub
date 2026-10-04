@@ -2,13 +2,11 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
-  preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+  server: { host: '127.0.0.1', port: 7070, strictPort: true },
+  preview: { host: '127.0.0.1', port: 7060, strictPort: true },
   build: {
     target: 'es2022',
     sourcemap: false,
-    // Firestore + persistance ≈ 600 kB (180 kB gzip), incompressible.
-    chunkSizeWarningLimit: 700,
     rolldownOptions: {
       output: {
         // Firebase dans son propre chunk : il change rarement, reste en cache entre déploiements.

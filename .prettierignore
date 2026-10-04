@@ -4,3 +4,5 @@ dev-dist
 package-lock.json
 CLAUDE.md
 *.log
+api/.data
+api/package-lock.json

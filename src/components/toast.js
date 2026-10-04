@@ -53,11 +53,11 @@ export function showToast(
   return close;
 }
 
-/** Erreur d'écriture/lecture Firestore → message lisible. */
+/** Erreur locale ou API → message lisible. */
 export function reportError(err) {
   console.error(err);
-  const denied = err?.code === 'permission-denied';
-  showToast(denied ? 'Action refusée par les règles de sécurité.' : 'Une erreur est survenue.', {
+  const denied = err?.status === 403;
+  showToast(denied ? 'Action refusée par le serveur.' : 'Une erreur est survenue.', {
     tone: 'danger',
   });
 }
