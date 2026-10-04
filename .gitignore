@@ -1,0 +1,26 @@
+# deps & build
+node_modules/
+dist/
+dev-dist/
+coverage/
+
+# env (config Firebase locale, jamais commitée)
+.env
+.env.*
+!.env.example
+
+# firebase
+.firebase/
+*-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+emulator-data/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log

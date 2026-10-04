@@ -1,0 +1,211 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // ---------- Identité ----------
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'tienddaren4@gmail.com';
+    }
+    function isOwner(uid) { return isAdmin() && request.auth.uid == uid; }
+    function memberPath(h) {
+      return /databases/$(db)/documents/houses/$(h)/members/$(request.auth.uid);
+    }
+    function isMember(h) { return signedIn() && exists(memberPath(h)); }
+    function isHouseAdmin(h) {
+      return isAdmin() && get(/databases/$(db)/documents/houses/$(h)).data.adminUid == request.auth.uid;
+    }
+    function invitePath() {
+      return /databases/$(db)/documents/invites/$(request.auth.token.email);
+    }
+
+    // ---------- Validation ----------
+    function d() { return request.resource.data; }
+    function keysOk(required, allowed) {
+      return d().keys().hasAll(required) && d().keys().hasOnly(allowed);
+    }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function amount(v) { return v is int && v > 0 && v < 1000000000; }
+    function budget(v) { return v is int && v >= 0 && v < 1000000000; }
+    function qty(v) { return v is number && v >= 0 && v < 1000000; }
+    function dayKey(v) {
+      return v is string && v.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+    function optDay(v) { return v == null || dayKey(v); }
+    function optTime(v) { return v == null || v is timestamp; }
+    function optStr(field, max) { return !(field in d()) || str(d()[field], 0, max); }
+    function optMap(field, maxSize) {
+      return !(field in d()) || (d()[field] is map && d()[field].size() <= maxSize);
+    }
+    function createdUnchanged() {
+      return request.method == 'create' || d().createdAt == resource.data.createdAt;
+    }
+
+    // ---------- Espace perso (admin uniquement) ----------
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      match /{document=**} {
+        allow read: if isOwner(uid);
+      }
+
+      match /habits/{id} {
+        allow create, update: if isOwner(uid)
+          && keysOk(['name', 'order', 'active', 'createdAt'],
+                    ['name', 'emoji', 'order', 'active', 'createdAt'])
+          && str(d().name, 1, 60) && optStr('emoji', 16)
+          && d().order is int && d().active is bool && d().createdAt is timestamp
+          && createdUnchanged();
+        allow delete: if isOwner(uid);
+      }
+
+      match /habitLogs/{month} {
+        allow create, update: if isOwner(uid)
+          && month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+          && d().keys().hasOnly(['checks', 'mood', 'sleep'])
+          && optMap('checks', 200) && optMap('mood', 31) && optMap('sleep', 31);
+        allow delete: if isOwner(uid);
+      }
+
+      match /expenses/{id} {
+        allow create, update: if isOwner(uid)
+          && keysOk(['amount', 'categoryId', 'date', 'createdAt', 'updatedAt'],
+                    ['amount', 'categoryId', 'note', 'date', 'createdAt', 'updatedAt'])
+          && amount(d().amount) && str(d().categoryId, 1, 64) && optStr('note', 200)
+          && dayKey(d().date) && d().createdAt is timestamp && d().updatedAt is timestamp
+          && createdUnchanged();
+        allow delete: if isOwner(uid);
+      }
+
+      match /categories/{id} {
+        allow create, update: if isOwner(uid)
+          && keysOk(['name', 'monthlyBudget'], ['name', 'emoji', 'color', 'monthlyBudget'])
+          && str(d().name, 1, 40) && optStr('emoji', 16) && optStr('color', 16)
+          && budget(d().monthlyBudget);
+        allow delete: if isOwner(uid);
+      }
+
+      match /tasks/{id} {
+        allow create, update: if isOwner(uid)
+          && keysOk(['title', 'done', 'priority', 'dueDate', 'recurrence', 'createdAt'],
+                    ['title', 'done', 'priority', 'dueDate', 'recurrence', 'createdAt', 'doneAt'])
+          && str(d().title, 1, 200) && d().done is bool
+          && d().priority in [1, 2, 3] && optDay(d().dueDate)
+          && d().recurrence in [null, 'daily', 'weekly', 'monthly']
+          && d().createdAt is timestamp && (!('doneAt' in d()) || optTime(d().doneAt))
+          && createdUnchanged();
+        allow delete: if isOwner(uid);
+      }
+
+      match /dailyGoals/{day} {
+        allow create, update: if isOwner(uid) && dayKey(day)
+          && keysOk(['items'], ['items'])
+          && d().items is list && d().items.size() <= 5;
+        allow delete: if isOwner(uid);
+      }
+
+      match /settings/{docId} {
+        allow create, update: if isOwner(uid) && docId == 'profile'
+          && d().keys().hasOnly(['displayName', 'currency', 'theme'])
+          && optStr('displayName', 60)
+          && (!('currency' in d()) || d().currency == 'XOF')
+          && (!('theme' in d()) || d().theme in ['dark', 'light']);
+      }
+    }
+
+    // ---------- Maison (partagée) ----------
+    match /houses/{h} {
+      allow create: if isAdmin()
+        && keysOk(['name', 'adminUid', 'createdAt'], ['name', 'adminUid', 'createdAt'])
+        && d().adminUid == request.auth.uid && str(d().name, 1, 60)
+        && d().createdAt is timestamp;
+      // isHouseAdmin : l'admin lit sa maison avant d'avoir écrit son propre doc members.
+      allow read: if isMember(h) || isHouseAdmin(h);
+      allow update: if isHouseAdmin(h)
+        && d().diff(resource.data).affectedKeys().hasOnly(['name']) && str(d().name, 1, 60);
+      allow delete: if isHouseAdmin(h);
+
+      match /members/{uid} {
+        function validMember(role) {
+          return keysOk(['role', 'email', 'joinedAt'], ['role', 'email', 'displayName', 'joinedAt'])
+            && d().role == role && str(d().email, 3, 254) && optStr('displayName', 80)
+            && d().joinedAt is timestamp;
+        }
+        allow read: if isMember(h) || isHouseAdmin(h);
+        allow create: if (isHouseAdmin(h) && (validMember('admin') || validMember('member')))
+          || (signedIn() && request.auth.uid == uid && validMember('member')
+              && d().email == request.auth.token.email
+              && exists(invitePath()) && get(invitePath()).data.houseId == h);
+        allow update: if isHouseAdmin(h) && (validMember('admin') || validMember('member'));
+        allow delete: if isHouseAdmin(h)
+          || (signedIn() && request.auth.uid == uid && resource.data.role == 'member');
+      }
+
+      match /stock/{id} {
+        allow read: if isMember(h);
+        allow create, update: if isMember(h)
+          && keysOk(['name', 'qty', 'updatedAt'],
+                    ['name', 'qty', 'unit', 'minQty', 'location', 'updatedAt'])
+          && str(d().name, 1, 60) && qty(d().qty) && optStr('unit', 16)
+          && (!('minQty' in d()) || qty(d().minQty)) && optStr('location', 40)
+          && d().updatedAt is timestamp;
+        allow delete: if isMember(h);
+      }
+
+      match /menu/{week} {
+        allow read: if isMember(h);
+        allow create, update: if isMember(h)
+          && week.matches('^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$')
+          && keysOk(['days'], ['days']) && d().days is map
+          && d().days.keys().hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+        allow delete: if isMember(h);
+      }
+
+      match /shopping/{id} {
+        allow read: if isMember(h);
+        allow create, update: if isMember(h)
+          && keysOk(['name', 'checked', 'source'], ['name', 'qty', 'checked', 'source'])
+          && str(d().name, 1, 60) && d().checked is bool
+          && d().source in ['manual', 'stock', 'menu']
+          && (!('qty' in d()) || qty(d().qty) || str(d().qty, 0, 20));
+        allow delete: if isMember(h);
+      }
+
+      match /bills/{id} {
+        function validBill() {
+          return keysOk(['label', 'amount', 'dueDate', 'recurrence', 'paid'],
+                        ['label', 'amount', 'dueDate', 'recurrence', 'paid', 'paidAt', 'paidBy'])
+            && str(d().label, 1, 80) && amount(d().amount) && dayKey(d().dueDate)
+            && d().recurrence in [null, 'monthly', 'yearly'] && d().paid is bool
+            && (!('paidAt' in d()) || optTime(d().paidAt))
+            && (!('paidBy' in d()) || d().paidBy == null || str(d().paidBy, 1, 128));
+        }
+        // Un coloc ne peut que basculer « payé », et seulement en son nom.
+        function memberPaidToggle() {
+          return d().diff(resource.data).affectedKeys().hasOnly(['paid', 'paidAt', 'paidBy'])
+            && (d().paid == false
+                ? d().get('paidBy', null) == null
+                : d().get('paidBy', null) == request.auth.uid);
+        }
+        allow read: if isMember(h);
+        allow create: if isHouseAdmin(h) && validBill();
+        allow delete: if isHouseAdmin(h);
+        allow update: if validBill() && (isHouseAdmin(h) || (isMember(h) && memberPaidToggle()));
+      }
+    }
+
+    // ---------- Invitations ----------
+    match /invites/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == email);
+      allow create, update: if isAdmin() && email == email.lower()
+        && keysOk(['houseId', 'createdAt'], ['houseId', 'createdAt'])
+        && str(d().houseId, 1, 128) && d().createdAt is timestamp;
+      // L'invité supprime lui-même son invitation une fois membre.
+      allow delete: if isAdmin() || (signedIn() && request.auth.token.email == email);
+    }
+
+    match /{other=**} { allow read, write: if false; }
+  }
+}
