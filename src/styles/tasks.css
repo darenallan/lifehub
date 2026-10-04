@@ -1,0 +1,213 @@
+/* ---------- Case à cocher ronde (objectifs et tâches) ---------- */
+.check {
+  flex: none;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 120ms var(--ease),
+    border-color 120ms var(--ease);
+}
+
+.check:hover {
+  border-color: var(--accent);
+}
+
+.check[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.check[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 5px;
+  height: 10px;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+/* ---------- Objectifs du jour ---------- */
+.goals {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.goal.is-done .input--bare {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.input--bare {
+  border-color: transparent;
+  background: transparent;
+  padding-left: var(--space-1);
+}
+
+.input--bare:hover,
+.input--bare:focus {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.icon-btn--quiet {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.goals__hint {
+  font-size: 0.8rem;
+}
+
+/* ---------- Onglets ---------- */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.tabs__tab {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 7px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.tabs__tab[aria-current='page'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+
+/* ---------- Tâches ---------- */
+.section-title {
+  margin-bottom: var(--space-1);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.section-title--overdue {
+  color: var(--danger);
+}
+
+.tasks {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.task:last-child {
+  border-bottom: 0;
+}
+
+.task__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.task__meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.task.is-overdue .task__meta {
+  color: var(--danger);
+}
+
+.task.is-done .task__title {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.priority {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+/* ---------- Formulaire tâche ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.field__label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---------- Bandeau d'information ---------- */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}

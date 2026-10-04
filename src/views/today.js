@@ -8,8 +8,12 @@ import { formatXOF } from '../lib/money.js';
 import { generateRecurring, watchCategories, watchMonthExpenses } from '../repos/expenses.js';
 import { watchProfile } from '../repos/profile.js';
 import { card, emptyState, pageHeader } from './common.js';
+import { tasksForView } from '../lib/tasks.js';
+import { watchTasks } from '../repos/tasks.js';
 import { openQuickAdd } from './expenseSheets.js';
 import { budgetLine } from './expenses.js';
+import { goalsCard } from './goals.js';
+import { taskRow } from './tasks.js';
 
 const firstName = (displayName) => (displayName ?? '').trim().split(/\s+/)[0] ?? '';
 
@@ -131,22 +135,52 @@ function spendingTodayCard() {
   return { el, cleanup: () => unsubscribers.forEach((u) => u()) };
 }
 
+/** Tâches en retard et du jour (5 premières), cochables. */
+function tasksTodayCard() {
+  const today = dayKey();
+  const body = h('div');
+  const counter = h('span', { class: 'card__meta' });
+  const el = card({
+    title: 'Tâches du jour',
+    iconName: 'tasks',
+    body,
+    footer: h('a', { class: 'link', href: '#/tasks' }, 'Toutes les tâches →'),
+  });
+  el.querySelector('.card__title').append(counter);
+
+  const cleanup = watchTasks((all) => {
+    const due = tasksForView(all, 'today', today);
+    counter.textContent = due.length ? String(due.length) : '';
+    mount(
+      body,
+      due.length
+        ? h(
+            'ul',
+            { class: 'tasks' },
+            due.slice(0, 5).map((t) => taskRow(t, today)),
+          )
+        : emptyState("Rien de prévu aujourd'hui."),
+      due.length > 5 ? h('p', { class: 'muted' }, `+ ${due.length - 5} autre(s)`) : null,
+    );
+  }, reportError);
+  return { el, cleanup };
+}
+
 export function renderToday(outlet, { user }) {
   const header = pageHeader('Bonjour', formatLongDate());
   const title = header.querySelector('.page-title');
+  const goals = goalsCard();
+  const tasks = tasksTodayCard();
   const habits = habitsTodayCard();
   const spending = spendingTodayCard();
 
   const grid = h(
     'div',
     { class: 'grid' },
+    goals.el,
+    tasks.el,
     habits.el,
     spending.el,
-    card({
-      title: 'Objectifs & tâches',
-      iconName: 'tasks',
-      body: emptyState('Arrive en phase 3.'),
-    }),
     card({ title: 'Factures proches', iconName: 'house', body: emptyState('Arrive en phase 4.') }),
   );
 
@@ -160,6 +194,8 @@ export function renderToday(outlet, { user }) {
 
   return () => {
     unsubscribeProfile();
+    goals.cleanup();
+    tasks.cleanup();
     habits.cleanup();
     spending.cleanup();
   };

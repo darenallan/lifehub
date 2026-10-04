@@ -6,6 +6,7 @@ const DAY = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const ADMIN = ['admin'];
 const day = { column: 'day', schema: { type: 'string', pattern: DAY } };
@@ -114,6 +115,36 @@ export const COLLECTIONS = {
         schema: { type: 'string', pattern: MONTH, nullable: true },
       },
       active: { column: 'active', schema: { type: 'boolean' } },
+    },
+  },
+
+  // ---------- Phase 3 : objectifs du jour et tâches ----------
+  // Id déterministe (utilisateur + jour + position) ; 5 objectifs max garantis par la base.
+  dailyGoal: {
+    table: 'daily_goals',
+    roles: ADMIN,
+    fields: {
+      day,
+      position: { column: 'position', schema: { type: 'integer', minimum: 0, maximum: 4 } },
+      text: { column: 'text', schema: { type: 'string', minLength: 1, maxLength: 120 } },
+      done: { column: 'done', schema: { type: 'boolean' } },
+    },
+  },
+
+  task: {
+    table: 'tasks',
+    roles: ADMIN,
+    fields: {
+      title: { column: 'title', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+      done: { column: 'done', schema: { type: 'boolean' } },
+      priority: { column: 'priority', schema: { type: 'integer', minimum: 1, maximum: 3 } },
+      dueDate: { column: 'due_date', schema: { type: 'string', pattern: DAY, nullable: true } },
+      dueTime: { column: 'due_time', schema: { type: 'string', pattern: TIME, nullable: true } },
+      recurrence: {
+        column: 'recurrence',
+        schema: { enum: ['daily', 'weekly', 'monthly'], nullable: true },
+      },
+      doneOn: { column: 'done_on', schema: { type: 'string', pattern: DAY, nullable: true } },
     },
   },
 };

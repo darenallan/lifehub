@@ -1,6 +1,7 @@
 // Session de données de l'utilisateur connecté : moteur de sync + déclencheurs.
 import { api } from './api.js';
 import { showToast } from './components/toast.js';
+import { startReminders } from './reminders.js';
 import { setPending, setState } from './store.js';
 import { createSyncEngine, deleteLocalData } from './sync/engine.js';
 
@@ -39,7 +40,9 @@ export async function startSession(uid) {
   const interval = setInterval(onVisible, PERIODIC_SYNC_MS);
   window.addEventListener('online', sync);
   document.addEventListener('visibilitychange', onVisible);
+  const stopReminders = startReminders(engine);
   detach = () => {
+    stopReminders();
     clearInterval(interval);
     window.removeEventListener('online', sync);
     document.removeEventListener('visibilitychange', onVisible);

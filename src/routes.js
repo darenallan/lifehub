@@ -3,6 +3,7 @@ import { comingSoon } from './views/common.js';
 import { renderExpenses } from './views/expenses.js';
 import { renderHabits } from './views/habits.js';
 import { renderSettings } from './views/settings.js';
+import { renderTasks } from './views/tasks.js';
 import { renderToday } from './views/today.js';
 
 const ADMIN_ONLY = [ROLE.ADMIN];
@@ -41,7 +42,7 @@ export const ROUTES = [
     icon: 'tasks',
     roles: ADMIN_ONLY,
     inNav: true,
-    render: comingSoon('Tâches', 3),
+    render: renderTasks,
   },
   {
     path: 'house',
