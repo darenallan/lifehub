@@ -31,3 +31,41 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirmer', dang
     dialog.showModal();
   });
 }
+
+let dialogCount = 0;
+
+/** Fenêtre générique (titre + contenu). Retourne { close }. onClose appelé une fois à la fermeture. */
+export function openDialog({ title, content, onClose }) {
+  const titleId = `dialog-title-${++dialogCount}`;
+  const dialog = h(
+    'dialog',
+    { class: 'modal modal--wide', 'aria-labelledby': titleId },
+    h(
+      'div',
+      { class: 'modal__body' },
+      h(
+        'div',
+        { class: 'modal__header' },
+        h('h2', { id: titleId, class: 'modal__title' }, title),
+        h(
+          'button',
+          {
+            class: 'icon-btn',
+            type: 'button',
+            'aria-label': 'Fermer',
+            onclick: () => dialog.close(),
+          },
+          '×',
+        ),
+      ),
+      content,
+    ),
+  );
+  dialog.addEventListener('close', () => {
+    onClose?.();
+    dialog.remove();
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  return { close: () => dialog.close() };
+}

@@ -56,3 +56,39 @@ const longDate = new Intl.DateTimeFormat('fr-FR', {
 export function formatLongDate(date = new Date()) {
   return longDate.format(date);
 }
+
+/** 'YYYY-MM' valide (mois 01..12). */
+export function isMonthKey(key) {
+  const m = MONTH_KEY_RE.exec(key ?? '');
+  return Boolean(m) && Number(m[2]) >= 1 && Number(m[2]) <= 12;
+}
+
+/** Toutes les clés 'YYYY-MM-DD' du mois. */
+export function monthDays(key) {
+  return Array.from({ length: daysInMonth(key) }, (_, i) => `${key}-${pad(i + 1)}`);
+}
+
+export function shiftMonth(key, delta) {
+  const [y, m] = key.split('-').map(Number);
+  return monthKey(new Date(y, m - 1 + delta, 1));
+}
+
+const monthLabel = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' });
+
+/** '2026-10' → « octobre 2026 » */
+export function formatMonth(key) {
+  const [y, m] = key.split('-').map(Number);
+  return monthLabel.format(new Date(y, m - 1, 1));
+}
+
+const weekdayNarrow = new Intl.DateTimeFormat('fr-FR', { weekday: 'narrow' });
+
+/** '2026-10-05' → « L » */
+export function weekdayInitial(key) {
+  return weekdayNarrow.format(parseDayKey(key)).toUpperCase();
+}
+
+/** Lundi = début de semaine ISO. */
+export function isMonday(key) {
+  return parseDayKey(key)?.getDay() === 1;
+}

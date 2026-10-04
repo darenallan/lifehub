@@ -1,6 +1,7 @@
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
+import './styles/habits.css';
 
 import { registerSW } from 'virtual:pwa-register';
 import { initAuth, logout, refreshRole } from './auth.js';

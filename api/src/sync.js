@@ -47,9 +47,9 @@ export async function applyMutation(db, { user, role, collections }, m) {
       if (seen.length) return applied();
 
       if (m.op === 'patch') {
-        const rows = await upsert(q, def, key, user.uid, m.data);
-        // 0 ligne : le document existe mais appartient à quelqu'un d'autre.
-        if (rows.length === 0) return rejected('forbidden');
+        const written = await upsert(q, def, key, user.uid, m.data);
+        // Rien d'écrit : le document existe mais appartient à quelqu'un d'autre.
+        if (!written) return rejected('forbidden');
       } else {
         await softDelete(q, def, key, user.uid);
       }
@@ -63,34 +63,44 @@ export async function applyMutation(db, { user, role, collections }, m) {
   }
 }
 
-function upsert(q, def, key, uid, data) {
+/**
+ * UPDATE d'abord (patch partiel d'un document existant), INSERT sinon.
+ * Un seul INSERT … ON CONFLICT ne suffit pas : Postgres vérifie les NOT NULL de la ligne
+ * proposée avant le conflit, donc un patch { done: false } échouerait sur une ligne existante.
+ * Retourne false si la clé existe déjà chez un autre utilisateur.
+ */
+async function upsert(q, def, key, uid, data) {
   const table = ident(def.table);
+  const keyCol = ident(keyColumn(def));
   const entries = Object.entries(data).map(([field, value]) => [
     ident(def.fields[field].column),
     value,
   ]);
+
+  const sets = entries.map(([column], i) => `${column} = $${i + 3}`);
+  const updated = await q(
+    `UPDATE ${table}
+     SET ${[...sets, "version = nextval('change_seq')", 'updated_at = now()', 'deleted_at = NULL'].join(', ')}
+     WHERE ${keyCol} = $1 AND "user_id" = $2
+     RETURNING 1`,
+    [key, uid, ...entries.map(([, value]) => value)],
+  );
+  if (updated.length) return true;
+
   const columns = def.singleton ? ['"user_id"'] : ['"id"', '"user_id"'];
   const values = def.singleton ? [uid] : [key, uid];
   for (const [column, value] of entries) {
     columns.push(column);
     values.push(value);
   }
-  const placeholders = values.map((_, i) => `$${i + 1}`);
-  const updates = [
-    ...entries.map(([column]) => `${column} = EXCLUDED.${column}`),
-    "version = nextval('change_seq')",
-    'updated_at = now()',
-    'deleted_at = NULL',
-  ];
-  const ownerCheck = def.singleton ? '' : `WHERE ${table}."user_id" = $2`;
-
-  return q(
-    `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})
-     ON CONFLICT (${ident(keyColumn(def))}) DO UPDATE SET ${updates.join(', ')}
-     ${ownerCheck}
+  const inserted = await q(
+    `INSERT INTO ${table} (${columns.join(', ')})
+     VALUES (${values.map((_, i) => `$${i + 1}`).join(', ')})
+     ON CONFLICT (${keyCol}) DO NOTHING
      RETURNING 1`,
     values,
   );
+  return inserted.length > 0;
 }
 
 // Suppression logique : la pierre tombale (deleted_at) se propage aux autres appareils.

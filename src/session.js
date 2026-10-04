@@ -15,6 +15,11 @@ export function getEngine() {
   return engine;
 }
 
+export function getUid() {
+  if (!currentUid) throw new Error('Aucune session de données ouverte.');
+  return currentUid;
+}
+
 export async function startSession(uid) {
   if (engine && currentUid === uid) return engine;
   await endSession();
