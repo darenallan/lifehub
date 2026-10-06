@@ -4,6 +4,8 @@ services:
     name: lifehub-api
     runtime: node
     plan: free
+    # Même région que la base Neon (AWS eu-central-1) : latence minimale API ↔ base.
+    region: frankfurt
     rootDir: api
     # --include=prod remplace le include=dev du .npmrc local : pas de devDependencies en prod.
     buildCommand: npm ci --include=prod --omit=dev
@@ -13,8 +15,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: '24'
+      # Identifiant public du projet Firebase (pas un secret).
       - key: FIREBASE_PROJECT_ID
-        sync: false
+        value: lifehub-1d337
       - key: ADMIN_EMAIL
         sync: false
       - key: DATABASE_URL

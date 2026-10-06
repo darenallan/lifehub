@@ -5,10 +5,26 @@ export async function createDb({ databaseUrl, pgliteDir } = {}) {
   return databaseUrl ? createPgDb(databaseUrl) : createPgliteDb(pgliteDir);
 }
 
-async function createPgDb(connectionString) {
+/**
+ * La chaîne Neon contient `channel_binding=require`, que `pg` ne lit pas dans l'URL :
+ * on le retire et on active l'option équivalente. SSL reste piloté par `sslmode=require`.
+ */
+export function parseConnectionString(url) {
+  const parsed = new URL(url);
+  const channelBinding = parsed.searchParams.get('channel_binding') === 'require';
+  parsed.searchParams.delete('channel_binding');
+  return { connectionString: parsed.toString(), enableChannelBinding: channelBinding };
+}
+
+async function createPgDb(url) {
   const { default: pg } = await import('pg');
-  // SSL piloté par la chaîne de connexion Neon (sslmode=require).
-  const pool = new pg.Pool({ connectionString, max: 5, idleTimeoutMillis: 30_000 });
+  const { connectionString, enableChannelBinding } = parseConnectionString(url);
+  const pool = new pg.Pool({
+    connectionString,
+    enableChannelBinding,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+  });
   const run = (client) => (sql, params) => client.query(sql, params).then((r) => r.rows);
 
   return {
