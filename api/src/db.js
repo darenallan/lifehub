@@ -1,5 +1,6 @@
 // Adaptateur unique : Postgres (Neon) en prod, PGlite (Postgres WASM) en local et en test.
 // Interface : query(sql, params) → rows, exec(sql), tx(fn(q)), close().
+import { mkdir } from 'node:fs/promises';
 
 export async function createDb({ databaseUrl, pgliteDir } = {}) {
   return databaseUrl ? createPgDb(databaseUrl) : createPgliteDb(pgliteDir);
@@ -51,6 +52,8 @@ async function createPgDb(url) {
 /** dataDir absent = base en mémoire (tests). */
 export async function createPgliteDb(dataDir) {
   const { PGlite } = await import('@electric-sql/pglite');
+  // PGlite ne crée que le dernier dossier : sur un clone neuf, `.data/` n'existe pas encore.
+  if (dataDir) await mkdir(dataDir, { recursive: true });
   const pg = new PGlite(dataDir);
   await pg.waitReady;
   const run = (client) => (sql, params) => client.query(sql, params).then((r) => r.rows);
