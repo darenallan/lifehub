@@ -1,0 +1,94 @@
+# Déploiement de LifeHub
+
+État au 6 octobre 2026. Tout tourne sur des offres gratuites, avec un seul compte Google (le compte admin, celui de `ADMIN_EMAIL`) pour Firebase, Google Cloud, Neon, Render et Vercel.
+
+## Vue d'ensemble
+
+| Rôle             | Service                                                                    | Adresse / identifiant                 |
+| ---------------- | -------------------------------------------------------------------------- | ------------------------------------- |
+| Front (PWA)      | Vercel, projet `lifehub` (équipe « Daren's projects »)                     | https://lifehub-jade-ten.vercel.app   |
+| API              | Render, service web `lifehub-api` (Blueprint `lifehub`, région Frankfurt)  | https://lifehub-api-pryz.onrender.com |
+| Base de données  | Neon, projet `lifehub` (AWS eu-central-1, base `neondb`, connexion poolée) | —                                     |
+| Connexion Google | Firebase Auth, projet `lifehub-1d337`                                      | —                                     |
+| Code             | GitHub `darenallan/lifehub`, branche `main`                                | —                                     |
+
+Un `git push` sur `main` redéploie automatiquement le front (Vercel) et l'API (Render, d'après `render.yaml`).
+
+## Variables d'environnement
+
+Les valeurs secrètes ne sont **jamais** dans le dépôt. Les modèles sont dans `.env.example` et `api/.env.example`.
+
+**Vercel** (Settings → Environment Variables, type **Config**, environnement Production) :
+
+| Variable                    | Valeur                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| `VITE_FIREBASE_API_KEY`     | clé `AIza…` (console Firebase → Paramètres du projet → Vos applications → LifeHub) |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `lifehub-1d337.firebaseapp.com`                                                    |
+| `VITE_FIREBASE_PROJECT_ID`  | `lifehub-1d337`                                                                    |
+| `VITE_FIREBASE_APP_ID`      | `1:603671447140:web:d5e05fd8fca1380acb0171`                                        |
+| `VITE_API_URL`              | `https://lifehub-api-pryz.onrender.com` (sans `/` final)                           |
+
+Ces valeurs sont publiques (elles finissent dans le JavaScript du site). Les déclarer en **Config**, pas en **Secret** : Vercel refuse d'enregistrer un Secret dont le nom commence par `VITE_`, et un Secret ne peut plus être converti (il faut le supprimer puis le recréer). Vite les intègre **au build** : après toute modification, redéployer (Deployments → « … » → Redeploy).
+
+**Render** (service `lifehub-api` → Environment) :
+
+| Variable              | Valeur                                                                                 |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `ADMIN_EMAIL`         | e-mail du compte Google admin                                                          |
+| `DATABASE_URL`        | chaîne de connexion Neon (bouton « Connect » → « Copy snippet ») — **secret**          |
+| `ALLOWED_ORIGINS`     | `https://lifehub-jade-ten.vercel.app` (plusieurs origines : séparées par des virgules) |
+| `FIREBASE_PROJECT_ID` | `lifehub-1d337` (fixé dans `render.yaml`)                                              |
+| `NODE_VERSION`        | `24` (fixé dans `render.yaml`)                                                         |
+
+## Réglages de sécurité en place
+
+- **Clé API Firebase** (Google Cloud → API et services → Identifiants → « Browser key (auto created by Firebase) ») : restreinte aux sites `https://lifehub-jade-ten.vercel.app/*` et `https://lifehub-1d337.firebaseapp.com/*` (le second sert à la fenêtre de connexion Google), et aux 25 API par défaut de Firebase.
+- **Firebase Auth** → Paramètres → Domaines autorisés : `lifehub-jade-ten.vercel.app` ajouté (plus les domaines par défaut).
+- **API** : CORS limité à `ALLOWED_ORIGINS`, jetons Firebase vérifiés, rôle calculé côté serveur, limites de débit.
+- **Front** : CSP stricte dans `vercel.json`, qui vise l'URL exacte de l'API et le domaine Firebase du projet.
+
+## Changer de domaine (nom de domaine perso, autre URL Vercel…)
+
+Le domaine du front est déclaré à **trois** endroits, à mettre à jour ensemble, sinon la connexion casse :
+
+1. Restrictions de la clé API (Google Cloud), ajouter `https://nouveau-domaine/*`.
+2. Domaines autorisés de Firebase Auth.
+3. `ALLOWED_ORIGINS` sur Render (puis « Save, rebuild, and deploy »).
+
+Si c'est l'**API** qui change d'URL : mettre à jour `VITE_API_URL` sur Vercel (puis redéployer) et `connect-src` dans `vercel.json` (puis pousser).
+
+## Changer le mot de passe Neon
+
+Neon → projet `lifehub` → Roles → réinitialiser le mot de passe de `neondb_owner`, puis remplacer `DATABASE_URL` sur Render. Garder `sslmode=require` et `channel_binding=require` : l'API convertit `channel_binding` pour le pilote `pg` (`api/src/db.js`).
+
+## Comportement à connaître
+
+- **Réveil de l'API** : l'offre gratuite de Render s'endort après 15 min sans requête. Le premier appel suivant prend jusqu'à environ une minute ; l'app affiche « Connexion au serveur… » pendant ce temps. Hors ligne, l'app fonctionne avec ses données locales et synchronise au retour.
+- **Mises à jour de l'app** : après un déploiement, l'app ouverte affiche « Nouvelle version disponible » ; cliquer « Recharger ». Pour changer l'icône sur un téléphone, réinstaller la PWA.
+
+## Vérifier que tout va bien
+
+```bash
+curl https://lifehub-api-pryz.onrender.com/healthz   # {"ok":true}
+curl https://lifehub-api-pryz.onrender.com/api/me    # 401 {"error":"missing_token"} : normal sans connexion
+```
+
+Côté navigateur : ouvrir le site, se connecter avec Google, l'écran « Aujourd'hui » doit s'afficher avec tous les onglets.
+
+## Développement local
+
+```bash
+npm ci && npm --prefix api ci
+cp .env.example .env && cp api/.env.example api/.env   # puis renseigner (émulateur Auth en local)
+npm run emulators    # émulateur Firebase Auth (CLI firebase globale)
+npm run dev:api      # API sur http://127.0.0.1:8787, base PGlite locale dans api/.data/
+npm run dev          # front sur http://127.0.0.1:7070
+npm run check        # lint + tests front + tests API
+```
+
+## Pièges rencontrés pendant la mise en ligne
+
+- Sur l'écran d'import Vercel, le bouton « Add More » des variables **lance le déploiement**. Créer le projet, puis ajouter les variables dans Settings.
+- Une variable `VITE_` vide ou absente au build donne un **écran noir** (« Config Firebase manquante » dans la console) : vérifier les variables puis redéployer.
+- La clé `BAGS…` de la console Firebase est une clé VAPID (notifications push), **pas** la clé API. La clé API commence par `AIza`.
+- Lire les variables une par une (`import.meta.env.VITE_X`), jamais `import.meta.env` en entier : sinon Vite embarque toutes les variables `VITE_*`, y compris celles que Vercel ajoute (`VITE_VERCEL_*` : message de commit, auteur…).

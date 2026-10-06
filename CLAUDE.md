@@ -32,7 +32,7 @@ Fonctionne hors ligne ; dès que le réseau revient, tout se synchronise automat
 
 ```
 /
-├─ CLAUDE.md  BRIEF.md
+├─ CLAUDE.md  DEPLOIEMENT.md (services, variables, réglages de prod)
 ├─ vercel.json (CSP + headers)  render.yaml (blueprint API)  firebase.json (émulateur Auth local)
 ├─ vite.config.js  package.json  .env.example  .gitignore  .vercelignore
 ├─ public/ (icons 192/512 + maskable, favicon)
@@ -182,6 +182,7 @@ npm run dev:api                 # API sur http://127.0.0.1:8787 (PGlite local si
 npm run dev                     # front sur http://127.0.0.1:7070
 npm run check                   # lint + tests front + tests API
 # Déploiement : push sur GitHub → Vercel (front) et Render (api/, render.yaml) redéploient seuls.
+# Détail des services, variables et réglages de prod : DEPLOIEMENT.md
 ```
 
 ## 10. Façon de travailler
