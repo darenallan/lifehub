@@ -2,9 +2,9 @@
 import { writeFileSync } from 'node:fs';
 import { crc32, deflateSync } from 'node:zlib';
 
-const BG = [0x0b, 0x0b, 0x0c];
-const TRACK = [0x2a, 0x2a, 0x2e];
-const ACCENT = [0xff, 0x8a, 0x3d];
+const BG = [0x0b, 0x0a, 0x08];
+const TRACK = [0x2c, 0x2a, 0x27];
+const ACCENT = [0xc8, 0xa8, 0x4b];
 const SUPERSAMPLE = 4;
 
 function chunk(type, data) {

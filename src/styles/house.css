@@ -23,8 +23,8 @@
 .badge--warn {
   margin-left: var(--space-2);
   padding: 0 8px;
-  background: rgb(234 179 8 / 0.15);
-  color: #ca8a04;
+  background: var(--warn-soft);
+  color: var(--warn);
   font-weight: 600;
 }
 
@@ -101,7 +101,7 @@
 }
 
 .stock-item.is-low .stepper__value {
-  color: #ca8a04;
+  color: var(--warn);
 }
 
 .stepper {
@@ -172,7 +172,7 @@
 }
 
 .bill--soon {
-  border-left-color: #eab308;
+  border-left-color: var(--warn);
 }
 
 .bill__body {

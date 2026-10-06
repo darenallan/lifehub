@@ -134,7 +134,7 @@
 }
 
 .gauge--warn .gauge__fill {
-  background: #eab308;
+  background: var(--warn);
 }
 
 .gauge--over .gauge__fill {
@@ -147,7 +147,7 @@
 }
 
 .budget-text--warn {
-  color: #ca8a04;
+  color: var(--warn);
 }
 
 .budget-text--over {

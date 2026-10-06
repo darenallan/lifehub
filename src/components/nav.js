@@ -21,7 +21,7 @@ export function createNav(routes, role) {
       'div',
       { class: 'nav__brand' },
       h('span', { class: 'brand-dot', 'aria-hidden': 'true' }),
-      'LifeHub',
+      h('span', { class: 'shimmer' }, 'LifeHub'),
     ),
     h('div', { class: 'nav__links' }, links),
   );

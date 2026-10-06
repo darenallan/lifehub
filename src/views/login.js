@@ -26,7 +26,7 @@ export function renderLogin({ authError }) {
       'div',
       { class: 'auth-card' },
       h('span', { class: 'brand-dot brand-dot--lg', 'aria-hidden': 'true' }),
-      h('h1', { class: 'page-title' }, 'LifeHub'),
+      h('h1', { class: 'page-title shimmer' }, 'LifeHub'),
       h('p', { class: 'muted' }, 'Habitudes, dépenses, tâches et maison. Hors ligne compris.'),
       button,
       authError ? h('p', { class: 'error', role: 'alert' }, authError) : null,

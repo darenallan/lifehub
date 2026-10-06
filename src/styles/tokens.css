@@ -1,23 +1,32 @@
-/* Sombre par défaut ; [data-theme='light'] pour le clair. Un seul accent. */
+/* Sombre par défaut (noir d'encre + or) ; [data-theme='light'] pour le clair (sable + or bruni). */
 :root {
   color-scheme: dark;
-  --bg: #0b0b0c;
-  --surface: #141416;
-  --surface-2: #1c1c1f;
-  --border: #2a2a2e;
-  --text: #f2f2f3;
-  --muted: #9b9ba3;
-  --accent: #ff8a3d;
-  --accent-ink: #1a0d03;
-  --accent-soft: rgb(255 138 61 / 0.14);
-  --danger: #f87171;
-  --danger-soft: rgb(248 113 113 / 0.12);
+  --bg: #0b0a08;
+  --surface: #141310;
+  --surface-2: #1d1b17;
+  --border: #2c2a27;
+  --text: #fefcf8;
+  --muted: #958f86;
+  --accent: #c8a84b;
+  --accent-2: #e2c56a;
+  --accent-3: #8a6e28;
+  --accent-ink: #0b0a08;
+  --accent-soft: rgb(200 168 75 / 0.13);
+  --accent-glow: rgb(200 168 75 / 0.09);
+  --warn: #d9893a;
+  --warn-soft: rgb(217 137 58 / 0.15);
+  --danger: #e06666;
+  --danger-soft: rgb(224 102 102 / 0.13);
+  --grain-opacity: 0.05;
+  --shadow: 0 12px 32px rgb(0 0 0 / 0.45);
 
   --font:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Syne', var(--font);
+  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
 
-  --radius: 14px;
+  --radius: 16px;
   --radius-sm: 10px;
   --space-1: 4px;
   --space-2: 8px;
@@ -30,19 +39,27 @@
   --sidebar-w: 232px;
   --content-max: 960px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f2f2f3;
-  --border: #e3e3e6;
-  --text: #111113;
-  --muted: #5f5f68;
-  --accent: #c2410c;
-  --accent-ink: #ffffff;
-  --accent-soft: rgb(194 65 12 / 0.1);
-  --danger: #b91c1c;
-  --danger-soft: rgb(185 28 28 / 0.08);
+  --bg: #f2ede4;
+  --surface: #fefcf8;
+  --surface-2: #ede6d9;
+  --border: #d9cfc0;
+  --text: #1a1916;
+  --muted: #6b655c;
+  --accent: #76601f;
+  --accent-2: #8a6e28;
+  --accent-3: #5c4a16;
+  --accent-ink: #fefcf8;
+  --accent-soft: rgb(138 110 40 / 0.12);
+  --accent-glow: rgb(200 168 75 / 0.16);
+  --warn: #a85d17;
+  --warn-soft: rgb(168 93 23 / 0.12);
+  --danger: #b42318;
+  --danger-soft: rgb(180 35 24 / 0.08);
+  --grain-opacity: 0.07;
+  --shadow: 0 12px 32px rgb(60 45 20 / 0.14);
 }

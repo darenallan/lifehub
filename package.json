@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@firebase/app": "0.16.2",
-    "@firebase/auth": "1.13.6"
+    "@firebase/auth": "1.13.6",
+    "@fontsource/instrument-serif": "5.3.0",
+    "@fontsource/syne": "5.3.0"
   }
 }

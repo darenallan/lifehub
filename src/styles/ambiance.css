@@ -1,0 +1,406 @@
+/* Ambiance « noir & or » : formes de fond, grain, typographie d'affichage et animations.
+   Tout ce qui bouge passe par transform/opacity (composité, fluide sur mobile)
+   et s'éteint avec prefers-reduced-motion (règle globale de base.css). */
+
+/* ---------- Fond : halo, grille qui dérive, lignes qui balaient ---------- */
+.decor {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.decor::before {
+  content: '';
+  position: absolute;
+  top: -25vh;
+  left: 50%;
+  width: min(1100px, 160vw);
+  height: 80vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%);
+  animation: halo-breathe 12s ease-in-out infinite;
+}
+
+.decor::after {
+  content: '';
+  position: absolute;
+  right: -20vw;
+  bottom: -30vh;
+  width: 70vw;
+  height: 70vh;
+  background: radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 65%);
+  opacity: 0.6;
+}
+
+/* Plus grande que l'écran d'un pas de grille : on la translate d'un pas, en boucle. */
+.decor__grid {
+  position: absolute;
+  inset: -80px 0 0 -80px;
+  background-image:
+    linear-gradient(var(--accent-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--accent-soft) 1px, transparent 1px);
+  background-size: 80px 80px;
+  opacity: 0.35;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 75%);
+  animation: grid-drift 40s linear infinite;
+}
+
+.decor__line {
+  position: absolute;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  transform-origin: left;
+  animation: line-sweep 9s ease-in-out infinite;
+}
+
+.decor__line:nth-of-type(1) {
+  top: 22%;
+  width: 60%;
+}
+
+.decor__line:nth-of-type(2) {
+  top: 58%;
+  left: 30%;
+  width: 45%;
+  animation-delay: 3s;
+}
+
+.decor__line:nth-of-type(3) {
+  top: 84%;
+  width: 70%;
+  animation-delay: 6s;
+}
+
+/* Grain : texture « rugueuse » fixe par-dessus tout, sans capter les clics. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Typographie ---------- */
+.page-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(2.2rem, 6vw, 3rem);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-2);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: '';
+  width: 24px;
+  height: 1px;
+  background: currentColor;
+}
+
+.card__title,
+.modal__title,
+.btn,
+.segmented__btn,
+.nav__brand,
+.topbar__brand {
+  font-family: var(--font-display);
+}
+
+.topbar__brand,
+.nav__brand {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Texte or qui scintille (marque, titre de connexion). */
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    var(--accent-3) 0%,
+    var(--accent) 30%,
+    var(--accent-2) 50%,
+    var(--accent) 70%,
+    var(--accent-3) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-text 6s linear infinite;
+}
+
+/* ---------- Formes ---------- */
+.card {
+  position: relative;
+  background: linear-gradient(160deg, var(--surface-2) 0%, var(--surface) 55%);
+  box-shadow: inset 0 1px 0 var(--accent-soft);
+  transition:
+    transform 300ms var(--ease-out),
+    border-color 300ms var(--ease-out),
+    box-shadow 300ms var(--ease-out);
+}
+
+/* Liseré or qui se déploie sous la carte au survol. */
+.card::after {
+  content: '';
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  transform: scaleX(0);
+  transition: transform 400ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    box-shadow:
+      inset 0 1px 0 var(--accent-soft),
+      var(--shadow);
+  }
+
+  .card:hover::after {
+    transform: scaleX(1);
+  }
+}
+
+/* Anneau de marque : arc or qui tourne lentement. */
+.brand-dot {
+  border-color: var(--accent);
+  border-right-color: transparent;
+  animation: spin 6s linear infinite;
+}
+
+.brand-dot--lg {
+  box-shadow: 0 0 40px var(--accent-glow);
+}
+
+/* Bouton principal : dégradé or + reflet qui traverse au survol. */
+.btn--primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  box-shadow: 0 6px 20px var(--accent-soft);
+}
+
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 700ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .btn--primary:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+.btn--ghost:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+/* Navigation : trait or sur l'onglet actif (en haut sur mobile, à gauche sur desktop). */
+.nav {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.nav__link {
+  position: relative;
+}
+
+.nav__link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+  transform: scaleX(0);
+  transition: transform 300ms var(--ease-out);
+}
+
+.nav__link.is-active::before {
+  transform: scaleX(1);
+}
+
+@media (min-width: 900px) {
+  .nav__link::before {
+    top: 20%;
+    bottom: 20%;
+    left: 0;
+    right: auto;
+    width: 2px;
+    height: auto;
+    border-radius: 0 2px 2px 0;
+    transform: scaleY(0);
+  }
+
+  .nav__link.is-active::before {
+    transform: scaleY(1);
+  }
+}
+
+/* Cases d'habitudes : contour or discret (lisible sur noir) et retour tactile à l'appui. */
+.cell {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  transition:
+    background 150ms var(--ease),
+    border-color 150ms var(--ease),
+    transform 120ms var(--ease);
+}
+
+.cell:not(:disabled):active {
+  transform: scale(0.86);
+}
+
+.cell[aria-pressed='true'] {
+  box-shadow: 0 0 10px var(--accent-soft);
+}
+
+/* Barres de défilement assorties. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-3) transparent;
+}
+
+/* ---------- Écran de connexion ---------- */
+.auth-card {
+  animation: rise 900ms var(--ease-out) both;
+}
+
+.auth-card .page-title {
+  font-size: clamp(3rem, 12vw, 4.2rem);
+}
+
+/* ---------- Entrée de page (classe posée par le routeur, retirée après) ---------- */
+.view.is-entering > * > * {
+  animation: rise 650ms var(--ease-out) both;
+}
+
+.view.is-entering > * > :nth-child(2) {
+  animation-delay: 60ms;
+}
+.view.is-entering > * > :nth-child(3) {
+  animation-delay: 120ms;
+}
+.view.is-entering > * > :nth-child(4) {
+  animation-delay: 180ms;
+}
+.view.is-entering > * > :nth-child(5) {
+  animation-delay: 240ms;
+}
+.view.is-entering > * > :nth-child(n + 6) {
+  animation-delay: 300ms;
+}
+
+/* Les graphiques se dessinent à l'arrivée sur la page. */
+.view.is-entering .ring__value {
+  animation: ring-draw 1100ms var(--ease-out) 200ms both;
+}
+
+.view.is-entering .bars__bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: bar-grow 800ms var(--ease-out) 250ms both;
+}
+
+.toast {
+  box-shadow:
+    0 0 0 1px var(--accent-soft),
+    var(--shadow);
+}
+
+.modal {
+  box-shadow: var(--shadow);
+  animation: rise 350ms var(--ease-out);
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes ring-draw {
+  from {
+    stroke-dasharray: 0 1000;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes shimmer-text {
+  to {
+    background-position: -200% center;
+  }
+}
+
+@keyframes halo-breathe {
+  50% {
+    opacity: 0.6;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+@keyframes grid-drift {
+  to {
+    transform: translate(80px, 80px);
+  }
+}
+
+@keyframes line-sweep {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  35%,
+  65% {
+    opacity: 0.35;
+    transform: scaleX(1);
+  }
+}

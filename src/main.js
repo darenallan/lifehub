@@ -1,3 +1,8 @@
+// Polices auto-hébergées (CSP font-src 'self', précachées pour le hors ligne), sous-ensemble latin.
+import '@fontsource/syne/latin-600.css';
+import '@fontsource/syne/latin-700.css';
+import '@fontsource/syne/latin-800.css';
+import '@fontsource/instrument-serif/latin-400.css';
 import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
@@ -5,6 +10,7 @@ import './styles/habits.css';
 import './styles/expenses.css';
 import './styles/tasks.css';
 import './styles/house.css';
+import './styles/ambiance.css';
 
 import { registerSW } from 'virtual:pwa-register';
 import { initAuth, logout, refreshRole } from './auth.js';
@@ -34,6 +40,18 @@ function teardownShell() {
   badge = null;
 }
 
+const ENTER_MS = 1300;
+
+/** Rejoue l'entrée en cascade de la page ; la classe est retirée ensuite pour que
+ *  les re-rendus liés aux données (cocher, sync) ne relancent pas l'animation. */
+function playEnter(outlet) {
+  clearTimeout(outlet.enterTimer);
+  outlet.classList.remove('is-entering');
+  void outlet.offsetWidth; // force le redémarrage des animations CSS
+  outlet.classList.add('is-entering');
+  outlet.enterTimer = setTimeout(() => outlet.classList.remove('is-entering'), ENTER_MS);
+}
+
 function renderShell(state) {
   const nav = createNav(ROUTES, state.role);
   badge = createOfflineBadge();
@@ -51,7 +69,7 @@ function renderShell(state) {
         h(
           'header',
           { class: 'topbar' },
-          h('span', { class: 'topbar__brand' }, 'LifeHub'),
+          h('span', { class: 'topbar__brand shimmer' }, 'LifeHub'),
           badge.el,
         ),
         h('main', { id: 'main' }, outlet),
@@ -64,7 +82,10 @@ function renderShell(state) {
     routes: ROUTES,
     outlet,
     getContext: () => ({ user: getState().user, role: getState().role }),
-    onRoute: (route) => nav.setActive(route.navParent ?? route.path),
+    onRoute: (route) => {
+      nav.setActive(route.navParent ?? route.path);
+      playEnter(outlet);
+    },
   });
   router.render();
 }

@@ -1,7 +1,7 @@
 // Thème mémorisé par appareil (confort local, pas une donnée).
 
 const KEY = 'lifehub.theme';
-const THEME_COLORS = { dark: '#0b0b0c', light: '#fafafa' };
+const THEME_COLORS = { dark: '#0b0a08', light: '#f2ede4' };
 
 export function getTheme() {
   try {
