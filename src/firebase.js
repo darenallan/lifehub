@@ -2,13 +2,13 @@
 import { initializeApp } from '@firebase/app';
 import { connectAuthEmulator, getAuth } from '@firebase/auth';
 
-const env = import.meta.env;
-
+// Accès variable par variable : `import.meta.env` entier embarquerait dans le bundle
+// toutes les variables VITE_* (dont VITE_VERCEL_* : commit, auteur…).
 const config = {
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  appId: env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 if (!config.apiKey || !config.projectId) {
@@ -18,6 +18,6 @@ if (!config.apiKey || !config.projectId) {
 export const app = initializeApp(config);
 export const auth = getAuth(app);
 
-if (env.VITE_USE_AUTH_EMULATOR === 'true') {
+if (import.meta.env.VITE_USE_AUTH_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
 }
