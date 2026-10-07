@@ -18,6 +18,9 @@ import { budgetLine } from './expenses.js';
 import { goalsCard } from './goals.js';
 import { taskRow } from './tasks.js';
 import { summaryCards } from './todaySummary.js';
+import { dosesForDay, missedDoses, nowStamp, parseStamp } from '../lib/health/schedule.js';
+import { watchMedsAndLogs } from '../repos/meds.js';
+import { doseList, openCatchUp } from './health/doses.js';
 
 const firstName = (displayName) => (displayName ?? '').trim().split(/\s+/)[0] ?? '';
 
@@ -168,6 +171,66 @@ function billsTodayCard() {
   return { el, cleanup };
 }
 
+/** Prises du jour (santé), cochables ; masquée sans traitement actif. */
+function dosesTodayCard() {
+  const body = h('div');
+  const counter = h('span', { class: 'card__meta' });
+  const el = card({
+    title: 'Prises du jour',
+    iconName: 'health',
+    body,
+    footer: h('a', { class: 'link', href: '#/health' }, 'Santé →'),
+  });
+  el.querySelector('.card__title').append(counter);
+  el.hidden = true;
+  let data = null;
+
+  function render() {
+    if (!data) return;
+    const now = parseStamp(nowStamp());
+    const entries = dosesForDay(data.meds, data.logs, dayKey(), now);
+    const missed = missedDoses(data.meds, data.logs, now);
+    el.hidden = !data.meds.some((m) => m.active);
+    const taken = entries.filter((e) => e.status === 'taken').length;
+    counter.textContent = entries.length ? `${taken}/${entries.length}` : '';
+    mount(
+      body,
+      missed.length
+        ? h(
+            'div',
+            { class: 'notice notice--alert' },
+            h('span', {}, `${missed.length} prise(s) manquée(s)`),
+            h(
+              'button',
+              {
+                class: 'btn btn--primary btn--sm',
+                type: 'button',
+                onclick: () => openCatchUp(missed, data.logs),
+              },
+              'Rattraper',
+            ),
+          )
+        : null,
+      entries.length
+        ? doseList(entries, data.logs)
+        : emptyState("Aucune prise planifiée aujourd'hui."),
+    );
+  }
+
+  const tick = setInterval(render, 60_000);
+  const stop = watchMedsAndLogs((next) => {
+    data = next;
+    render();
+  }, reportError);
+  return {
+    el,
+    cleanup: () => {
+      clearInterval(tick);
+      stop();
+    },
+  };
+}
+
 /** Tâches en retard et du jour (5 premières), cochables. */
 function tasksTodayCard() {
   const today = dayKey();
@@ -204,6 +267,7 @@ export function renderToday(outlet, { user }) {
   const title = header.querySelector('.page-title');
   const goals = goalsCard();
   const tasks = tasksTodayCard();
+  const doses = dosesTodayCard();
   const habits = habitsTodayCard();
   const spending = spendingTodayCard();
   const bills = billsTodayCard();
@@ -220,6 +284,7 @@ export function renderToday(outlet, { user }) {
     'div',
     { class: 'grid' },
     summary.dayEl,
+    doses.el,
     goals.el,
     tasks.el,
     habits.el,
@@ -240,6 +305,7 @@ export function renderToday(outlet, { user }) {
     unsubscribeProfile();
     goals.cleanup();
     tasks.cleanup();
+    doses.cleanup();
     habits.cleanup();
     spending.cleanup();
     bills.cleanup();

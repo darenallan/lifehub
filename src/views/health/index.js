@@ -1,40 +1,41 @@
-// Module Santé (phase 7.0) : avertissement au premier lancement, profil santé, contacts d'urgence.
+// Module Santé : accueil (#/health) et aiguillage des sous-écrans.
 // Rien n'est pré-rempli ni interprété : tout vient de la saisie de l'utilisateur.
-import { confirmDialog } from '../../components/modal.js';
 import { reportError, showToast } from '../../components/toast.js';
+import { dayKey } from '../../lib/dates.js';
 import { h, mount } from '../../lib/dom.js';
+import { splitList } from '../../lib/health/emergency.js';
+import { MED_FORMS, medTitle, scheduleLabel } from '../../lib/health/meds.js';
 import {
-  BLOOD_GROUPS,
-  cleanText,
-  isValidPhone,
-  parseHeight,
-  sortContacts,
-  splitList,
-  telHref,
-} from '../../lib/health/emergency.js';
+  cureEnded,
+  cureSummary,
+  dosesForDay,
+  missedDoses,
+  nowStamp,
+  parseStamp,
+} from '../../lib/health/schedule.js';
 import { icon } from '../../lib/icons.js';
 import {
   acceptDisclaimer,
-  deleteEmergencyContact,
-  saveEmergencyContact,
-  saveHealthProfile,
   watchEmergencyContacts,
   watchHealthProfile,
 } from '../../repos/health.js';
-import { card, pageHeader } from '../common.js';
+import { saveMed, watchMedsAndLogs } from '../../repos/meds.js';
+import { card, emptyState, pageHeader } from '../common.js';
+import { asNeededRow, doseList, openCatchUp } from './doses.js';
 import { renderEmergency } from './emergency.js';
+import { renderMedForm } from './medForm.js';
+import { renderHealthProfile } from './profile.js';
+
+const TICK_MS = 60_000; // les statuts (à prendre → manquée) évoluent avec l'heure
 
 const NEXT_STEPS = [
-  'Médicaments, prises du jour et rappels',
   'Stock de médicaments et renouvellement',
   'Mesures (tension, glycémie, poids…) et journal',
   'Rendez-vous et contacts médicaux',
   'Rapport pour le médecin (PDF, CSV)',
 ];
 
-function field(label, control) {
-  return h('label', { class: 'field' }, h('span', { class: 'field__label' }, label), control);
-}
+const shortDate = (date) => `${date.slice(8)}/${date.slice(5, 7)}`;
 
 function disclaimerCard() {
   const accept = h(
@@ -77,6 +78,143 @@ function disclaimerCard() {
   );
 }
 
+function catchUpNotice(missed, logs) {
+  return h(
+    'div',
+    { class: 'notice notice--alert', role: 'status' },
+    h('span', {}, `${missed.length} prise(s) manquée(s) depuis hier`),
+    h(
+      'button',
+      {
+        class: 'btn btn--primary btn--sm',
+        type: 'button',
+        onclick: () => openCatchUp(missed, logs),
+      },
+      'Rattraper',
+    ),
+  );
+}
+
+function cureEndedCard(med, logs) {
+  const { planned, taken } = cureSummary(med, logs);
+  const archive = () =>
+    saveMed(med.id, { active: false })
+      .then(() => showToast('Traitement archivé.'))
+      .catch(reportError);
+  return h(
+    'section',
+    { class: 'card cure-done' },
+    h('h2', { class: 'card__title' }, `Cure terminée · ${medTitle(med)}`),
+    h(
+      'p',
+      { class: 'muted' },
+      `${taken} prise(s) enregistrée(s) sur ${planned} prévue(s), du ${shortDate(med.startDate)} au ${shortDate(med.endDate)}.`,
+    ),
+    h(
+      'div',
+      { class: 'row row--wrap' },
+      h(
+        'button',
+        { class: 'btn btn--primary btn--sm', type: 'button', onclick: archive },
+        'Archiver',
+      ),
+      h('a', { class: 'btn btn--ghost btn--sm', href: `#/health/med/${med.id}` }, 'Prolonger'),
+    ),
+  );
+}
+
+function dosesCard({ meds, logs }, today, now) {
+  const entries = dosesForDay(meds, logs, today, now);
+  const asNeeded = meds.filter((m) => m.active && m.schedule?.type === 'asNeeded');
+  const taken = entries.filter((e) => e.status === 'taken').length;
+  const el = card({
+    title: 'Prises du jour',
+    iconName: 'health',
+    body: [
+      entries.length
+        ? doseList(entries, logs)
+        : emptyState(
+            asNeeded.length
+              ? 'Aucune prise planifiée aujourd’hui.'
+              : 'Aucune prise prévue aujourd’hui.',
+          ),
+      asNeeded.length
+        ? h(
+            'section',
+            { class: 'dose-group' },
+            h('h3', { class: 'dose-group__title' }, 'À la demande'),
+            h(
+              'ul',
+              { class: 'dose-list' },
+              asNeeded.map((med) => asNeededRow(med, logs, today)),
+            ),
+          )
+        : null,
+    ],
+  });
+  if (entries.length) {
+    el.querySelector('.card__title').append(
+      h('span', { class: 'card__meta' }, `${taken}/${entries.length}`),
+    );
+  }
+  return el;
+}
+
+function medRow(med) {
+  return h(
+    'li',
+    {},
+    h(
+      'a',
+      { class: `med-row cat--${med.color}`, href: `#/health/med/${med.id}` },
+      h(
+        'span',
+        { class: 'med-row__icon', 'aria-hidden': 'true' },
+        MED_FORMS[med.form]?.emoji ?? '✚',
+      ),
+      h(
+        'span',
+        { class: 'med-row__text' },
+        h('strong', {}, medTitle(med)),
+        h(
+          'span',
+          { class: 'muted' },
+          [scheduleLabel(med.schedule), med.endDate ? `jusqu'au ${shortDate(med.endDate)}` : null]
+            .filter(Boolean)
+            .join(' · '),
+        ),
+      ),
+    ),
+  );
+}
+
+function medsCard(meds) {
+  const active = meds.filter((m) => m.active).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  const archived = meds.filter((m) => !m.active);
+  return card({
+    title: 'Mes traitements',
+    iconName: 'tasks',
+    body: [
+      active.length
+        ? h('ul', { class: 'med-list' }, active.map(medRow))
+        : emptyState('Ajoute un médicament pour suivre tes prises et recevoir des rappels.'),
+      archived.length
+        ? h(
+            'details',
+            { class: 'more' },
+            h('summary', {}, `Archivés (${archived.length})`),
+            h('ul', { class: 'med-list' }, archived.map(medRow)),
+          )
+        : null,
+    ],
+    footer: h(
+      'a',
+      { class: 'btn btn--primary', href: '#/health/med/new' },
+      '+ Ajouter un traitement',
+    ),
+  });
+}
+
 function emergencySummary(profile, contacts) {
   const parts = [
     profile?.bloodGroup ? `Groupe ${profile.bloodGroup}` : null,
@@ -86,216 +224,18 @@ function emergencySummary(profile, contacts) {
   return parts.length ? parts.join(' · ') : 'À remplir : groupe sanguin, allergies, contacts';
 }
 
-function emergencyLink(summary) {
+function linkCard({ href, iconName, title, text, tone }) {
   return h(
     'a',
-    { class: 'card emergency-link', href: '#/health/emergency' },
-    h('span', { class: 'emergency-link__icon', 'aria-hidden': 'true' }, icon('emergency')),
+    { class: `card emergency-link${tone ? ` emergency-link--${tone}` : ''}`, href },
+    h('span', { class: 'emergency-link__icon', 'aria-hidden': 'true' }, icon(iconName)),
     h(
       'span',
       { class: 'emergency-link__text' },
-      h('strong', {}, "Carte d'urgence"),
-      h('span', { class: 'muted' }, summary),
+      h('strong', {}, title),
+      h('span', { class: 'muted' }, text),
     ),
   );
-}
-
-function input(value, props) {
-  const el = h('input', { class: 'input', autocomplete: 'off', ...props });
-  el.value = value ?? '';
-  return el;
-}
-
-function textarea(value, maxlength, placeholder) {
-  const el = h('textarea', { class: 'input textarea', rows: 3, maxlength, placeholder });
-  el.value = value ?? '';
-  return el;
-}
-
-/**
- * Formulaire du profil. getProfile() donne l'état local courant au moment de l'envoi :
- * seuls les champs modifiés partent (patchs par champ, pas d'écrasement d'un autre appareil).
- */
-function profileForm(getProfile) {
-  const profile = getProfile();
-  const bloodGroup = h(
-    'select',
-    { class: 'input' },
-    h('option', { value: '' }, 'Non renseigné'),
-    BLOOD_GROUPS.map((g) => h('option', { value: g }, g)),
-  );
-  bloodGroup.value = profile?.bloodGroup ?? '';
-  const height = input(profile?.heightCm, {
-    inputmode: 'numeric',
-    maxlength: 3,
-    placeholder: 'ex. 175',
-  });
-  const allergies = textarea(profile?.allergies, 500, 'Une par ligne, ex. Pénicilline');
-  const conditions = textarea(profile?.conditions, 500, 'Une par ligne, ex. Asthme');
-  const notes = textarea(profile?.emergencyNotes, 300, 'Ce que les secours doivent savoir');
-  const doctorName = input(profile?.doctorName, { maxlength: 60 });
-  const doctorPhone = input(profile?.doctorPhone, { type: 'tel', inputmode: 'tel', maxlength: 24 });
-
-  const submit = (e) => {
-    e.preventDefault();
-    const heightText = height.value.trim();
-    const phoneText = doctorPhone.value.trim();
-    if (heightText && parseHeight(heightText) == null) {
-      showToast('Taille : un nombre entier en cm, entre 50 et 250.', { tone: 'danger' });
-      height.focus();
-      return;
-    }
-    if (phoneText && !isValidPhone(phoneText)) {
-      showToast('Téléphone du médecin invalide.', { tone: 'danger' });
-      doctorPhone.focus();
-      return;
-    }
-    const next = {
-      bloodGroup: bloodGroup.value || null,
-      heightCm: parseHeight(heightText),
-      allergies: cleanText(allergies.value, 500),
-      conditions: cleanText(conditions.value, 500),
-      emergencyNotes: cleanText(notes.value, 300),
-      doctorName: cleanText(doctorName.value, 60),
-      doctorPhone: phoneText || null,
-    };
-    const current = getProfile();
-    const changed = Object.fromEntries(
-      Object.entries(next).filter(([key, value]) => value !== (current?.[key] ?? null)),
-    );
-    if (!Object.keys(changed).length) {
-      showToast('Rien à modifier.');
-      return;
-    }
-    saveHealthProfile(changed)
-      .then(() => showToast('Profil santé enregistré.'))
-      .catch(reportError);
-  };
-
-  return card({
-    title: 'Profil santé',
-    iconName: 'health',
-    body: h(
-      'form',
-      { class: 'stack', onsubmit: submit },
-      h(
-        'div',
-        { class: 'form-grid' },
-        field('Groupe sanguin', bloodGroup),
-        field('Taille (cm)', height),
-      ),
-      field('Allergies', allergies),
-      field('Pathologies chroniques', conditions),
-      field('Notes pour les secours', notes),
-      h(
-        'div',
-        { class: 'form-grid' },
-        field('Médecin traitant', doctorName),
-        field('Son téléphone', doctorPhone),
-      ),
-      h('button', { class: 'btn btn--primary', type: 'submit' }, 'Enregistrer'),
-    ),
-  });
-}
-
-function contactRow(contact) {
-  const remove = async () => {
-    const ok = await confirmDialog({
-      title: `Retirer ${contact.name} ?`,
-      message: "Ce contact n'apparaîtra plus sur ta carte d'urgence.",
-      confirmLabel: 'Retirer',
-      danger: true,
-    });
-    if (ok) await deleteEmergencyContact(contact.id);
-  };
-  const href = telHref(contact.phone);
-  return h(
-    'li',
-    { class: 'contact' },
-    h(
-      'div',
-      { class: 'contact__text' },
-      h('strong', {}, contact.name),
-      h('span', { class: 'muted' }, [contact.relation, contact.phone].filter(Boolean).join(' · ')),
-    ),
-    href
-      ? h(
-          'a',
-          { class: 'icon-btn contact__call', href, 'aria-label': `Appeler ${contact.name}` },
-          icon('phone', { size: 18 }),
-        )
-      : null,
-    h(
-      'button',
-      {
-        class: 'icon-btn icon-btn--quiet',
-        type: 'button',
-        'aria-label': `Retirer ${contact.name}`,
-        onclick: () => remove().catch(reportError),
-      },
-      '×',
-    ),
-  );
-}
-
-function contactsCard(contacts) {
-  const name = input('', {
-    maxlength: 60,
-    placeholder: 'Nom',
-    required: true,
-    'aria-label': 'Nom',
-  });
-  const phone = input('', {
-    type: 'tel',
-    inputmode: 'tel',
-    maxlength: 24,
-    placeholder: 'Téléphone',
-    required: true,
-    'aria-label': 'Téléphone',
-  });
-  const relation = input('', {
-    maxlength: 40,
-    placeholder: 'Lien (facultatif), ex. Sœur',
-    'aria-label': 'Lien avec toi',
-  });
-  const add = (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const cleanName = cleanText(name.value, 60);
-    if (!cleanName) return;
-    if (!isValidPhone(phone.value)) {
-      showToast('Numéro de téléphone invalide.', { tone: 'danger' });
-      phone.focus();
-      return;
-    }
-    const order = contacts.reduce((max, c) => Math.max(max, c.order + 1), 0);
-    saveEmergencyContact(null, {
-      name: cleanName,
-      phone: phone.value.trim(),
-      relation: cleanText(relation.value, 40),
-      order,
-    })
-      .then(() => form.reset())
-      .catch(reportError);
-  };
-
-  return card({
-    title: "Contacts d'urgence",
-    iconName: 'phone',
-    body: [
-      contacts.length
-        ? h('ul', { class: 'contact-list' }, sortContacts(contacts).map(contactRow))
-        : h('p', { class: 'empty' }, 'Ajoute une ou deux personnes à prévenir en cas de besoin.'),
-      h(
-        'form',
-        { class: 'contact-form', onsubmit: add },
-        name,
-        phone,
-        relation,
-        h('button', { class: 'btn btn--primary', type: 'submit' }, 'Ajouter'),
-      ),
-    ],
-  });
 }
 
 function nextStepsCard() {
@@ -309,36 +249,50 @@ function nextStepsCard() {
   });
 }
 
-export function renderHealth(outlet, ctx) {
-  if (ctx.params[0] === 'emergency') return renderEmergency(outlet);
-
+function renderHome(outlet) {
   const header = pageHeader('Santé', 'Suivi personnel');
-  const state = { profile: undefined, contacts: [] };
-  const slots = { link: h('div'), form: h('div'), contacts: h('div') };
-  let mainMounted = false;
+  const state = { profile: undefined, contacts: [], data: null };
 
   function render() {
-    if (state.profile === undefined) return; // base locale pas encore lue
+    if (state.profile === undefined || !state.data) return; // base locale pas encore lue
     if (!state.profile?.disclaimerSeenOn) {
-      mainMounted = false;
       mount(outlet, header, h('div', { class: 'stack' }, disclaimerCard()));
       return;
     }
-    mount(slots.link, emergencyLink(emergencySummary(state.profile, state.contacts)));
-    mount(slots.contacts, contactsCard(state.contacts));
-    if (mainMounted) return; // le formulaire n'est pas reconstruit pendant la saisie
-    mainMounted = true;
-    mount(
-      slots.form,
-      profileForm(() => state.profile),
-    );
+    const today = dayKey();
+    const now = parseStamp(nowStamp());
+    const { meds, logs } = state.data;
+    const missed = missedDoses(meds, logs, now);
+    const ended = meds.filter((m) => m.active && cureEnded(m, today));
     mount(
       outlet,
       header,
-      h('div', { class: 'stack' }, slots.link, slots.form, slots.contacts, nextStepsCard()),
+      h(
+        'div',
+        { class: 'stack' },
+        missed.length ? catchUpNotice(missed, logs) : null,
+        ended.map((med) => cureEndedCard(med, logs)),
+        dosesCard(state.data, today, now),
+        medsCard(meds),
+        linkCard({
+          href: '#/health/emergency',
+          iconName: 'emergency',
+          title: "Carte d'urgence",
+          text: emergencySummary(state.profile, state.contacts),
+          tone: 'danger',
+        }),
+        linkCard({
+          href: '#/health/profile',
+          iconName: 'phone',
+          title: 'Profil et contacts',
+          text: 'Groupe sanguin, allergies, médecin traitant, personnes à prévenir.',
+        }),
+        nextStepsCard(),
+      ),
     );
   }
 
+  const tick = setInterval(render, TICK_MS);
   const stops = [
     watchHealthProfile((profile) => {
       state.profile = profile;
@@ -348,6 +302,26 @@ export function renderHealth(outlet, ctx) {
       state.contacts = contacts;
       render();
     }, reportError),
+    watchMedsAndLogs((data) => {
+      state.data = data;
+      render();
+    }, reportError),
   ];
-  return () => stops.forEach((stop) => stop());
+  return () => {
+    clearInterval(tick);
+    stops.forEach((stop) => stop());
+  };
+}
+
+export function renderHealth(outlet, { params }) {
+  switch (params[0]) {
+    case 'emergency':
+      return renderEmergency(outlet);
+    case 'profile':
+      return renderHealthProfile(outlet);
+    case 'med':
+      return renderMedForm(outlet, params[1] ?? 'new');
+    default:
+      return renderHome(outlet);
+  }
 }

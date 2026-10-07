@@ -21,7 +21,7 @@ import { showToast } from './components/toast.js';
 import { h, mount } from './lib/dom.js';
 import { ROLE } from './lib/roles.js';
 import { applyTheme } from './lib/theme.js';
-import { createRouter } from './router.js';
+import { createRouter, parseHash } from './router.js';
 import { ROUTES } from './routes.js';
 import { getState, setState, subscribe } from './store.js';
 import { renderLogin } from './views/login.js';
@@ -53,9 +53,15 @@ function playEnter(outlet) {
   outlet.enterTimer = setTimeout(() => outlet.classList.remove('is-entering'), ENTER_MS);
 }
 
-/** Écran secondaire (navParent) : lien « ‹ Parent » dans la barre du haut. */
+/**
+ * Écran secondaire : lien « ‹ Parent » dans la barre du haut. Une route à sous-pages
+ * (subPages, ex. #/health/med/…) revient à sa propre racine, sinon à son navParent.
+ */
 function updateBackLink(link, route) {
-  const parent = route.navParent && ROUTES.find((r) => r.path === route.navParent);
+  const isSubPage = route.subPages && parseHash(location.hash).params.length > 0;
+  const parent = isSubPage
+    ? route
+    : route.navParent && ROUTES.find((r) => r.path === route.navParent);
   link.hidden = !parent;
   link.closest('.topbar')?.classList.toggle('topbar--sub', Boolean(parent));
   if (!parent) return;

@@ -7,7 +7,7 @@ const ITEMS = [
   {
     href: '#/health',
     title: 'Santé',
-    text: "Profil santé, contacts d'urgence ; bientôt traitements et mesures.",
+    text: "Prises du jour, traitements, rappels, profil et contacts d'urgence.",
     admin: true,
   },
   {

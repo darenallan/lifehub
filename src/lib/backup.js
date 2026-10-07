@@ -20,6 +20,8 @@ export const BACKUP_COLLECTIONS = [
   'quickNote',
   'healthProfile',
   'emergencyContact',
+  'med',
+  'doseLog',
 ];
 
 /** Collections à document unique : leur id est toujours 'me'. */

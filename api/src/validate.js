@@ -42,9 +42,17 @@ export function checkValue(schema, value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return 'doit être un nombre';
       if (schema.minimum != null && value < schema.minimum) return 'trop petit';
       if (schema.maximum != null && value > schema.maximum) return 'trop grand';
-      return null;
+      return schema.check ? schema.check(value) : null;
     case 'boolean':
       return typeof value === 'boolean' ? null : 'doit être un booléen';
+    // Objet structuré (stocké en jsonb) : forme vérifiée par schema.check, qui ne doit jamais
+    // recopier de valeur dans son message (les refus sont journalisés).
+    case 'json':
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return 'doit être un objet';
+      }
+      if (JSON.stringify(value).length > (schema.maxBytes ?? 4000)) return 'trop volumineux';
+      return schema.check(value);
     default:
       return 'type non géré';
   }

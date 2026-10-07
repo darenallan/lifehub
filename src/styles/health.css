@@ -44,15 +44,22 @@
   margin-top: var(--space-2);
 }
 
-/* Accès à la carte d'urgence */
+/* Cartes-liens de l'accueil Santé (or) ; la carte d'urgence garde le rouge. */
 .emergency-link {
+  --link-tone: var(--accent);
+  --link-soft: var(--accent-soft);
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding-right: calc(var(--space-4) + 20px);
   color: inherit;
   text-decoration: none;
-  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-color: color-mix(in srgb, var(--link-tone) 35%, var(--border));
+}
+
+.emergency-link--danger {
+  --link-tone: var(--danger);
+  --link-soft: var(--danger-soft);
 }
 
 .emergency-link::before {
@@ -61,7 +68,7 @@
   top: 50%;
   right: var(--space-4);
   transform: translateY(-50%);
-  color: var(--danger);
+  color: var(--link-tone);
   font-size: 1.5rem;
   line-height: 1;
 }
@@ -73,8 +80,8 @@
   width: 44px;
   height: 44px;
   border-radius: 14px;
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: var(--link-soft);
+  color: var(--link-tone);
 }
 
 .emergency-link__text {
@@ -319,4 +326,320 @@
 
 .sos__edit {
   justify-self: center;
+}
+
+/* ---------- Médicaments et prises (phase 7.1) ---------- */
+.field__hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.notice--alert {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+  background: var(--warn-soft);
+  color: var(--text);
+}
+
+.cure-done {
+  display: grid;
+  gap: var(--space-2);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.cure-done .card__title {
+  margin: 0;
+}
+
+.dose-group {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.dose-group + .dose-group {
+  margin-top: var(--space-3);
+}
+
+.dose-group__title {
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dose-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ligne de prise : [rond à cocher] [nom + quantité] [heure + statut] */
+.dose {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dose:last-child {
+  border-bottom: 0;
+}
+
+.dose__check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--cat, var(--accent));
+  background: transparent;
+  color: var(--accent-ink);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 150ms var(--ease),
+    transform 120ms var(--ease);
+}
+
+.dose__check:active {
+  transform: scale(0.88);
+}
+
+.dose__check[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+}
+
+.dose__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin: 0 14px;
+  border-radius: 50%;
+  background: var(--cat, var(--accent));
+}
+
+.dose__body {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dose__body--static {
+  cursor: default;
+}
+
+.dose__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dose__meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.dose__when {
+  flex: none;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.dose__time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dose__status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.dose--due .dose__status {
+  color: var(--accent);
+}
+
+.dose--missed .dose__status {
+  color: var(--danger);
+}
+
+.dose--taken .dose__name,
+.dose--skipped .dose__name {
+  color: var(--muted);
+}
+
+.dose--skipped .dose__name {
+  text-decoration: line-through;
+}
+
+.dose__taken {
+  margin-top: var(--space-1);
+}
+
+.chip--sm {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  font-size: 0.8rem;
+}
+
+.dose-sheet__notes {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  white-space: pre-line;
+}
+
+.dose-sheet__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.dose-sheet__row .field {
+  flex: 1;
+}
+
+/* Liste des traitements */
+.med-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.med-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.med-list li:last-child .med-row {
+  border-bottom: 0;
+}
+
+.med-row__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cat, var(--accent)) 18%, transparent);
+  font-size: 1.2rem;
+}
+
+.med-row__text {
+  display: grid;
+  min-width: 0;
+}
+
+.med-row__text .muted {
+  font-size: 0.85rem;
+}
+
+/* Formulaire médicament */
+.times {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.times__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--cat);
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+/* Interrupteur accessible : vraie case à cocher, piste dessinée. */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.switch__input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.switch__track {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: background 200ms var(--ease);
+}
+
+.switch__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 200ms var(--ease-out);
+}
+
+.switch__input:checked + .switch__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch__input:checked + .switch__track::after {
+  background: var(--accent-ink);
+  transform: translateX(18px);
+}
+
+.switch__input:focus-visible + .switch__track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

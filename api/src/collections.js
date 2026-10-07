@@ -1,4 +1,6 @@
 // Registre des collections synchronisées. Chaque phase y ajoute ses tables.
+import { checkReminder, checkSchedule, isDoseAmount } from './health.js';
+
 // singleton : un seul document par utilisateur (docId 'me', clé = user_id).
 // Sinon : docId = uuid généré par le client, colonne id + colonne propriétaire user_id.
 
@@ -52,6 +54,18 @@ const optionalText = (maxLength) => ({ type: 'string', maxLength, nullable: true
 // Même motif que la contrainte CHECK de 008_health_phone.sql (numéros courts acceptés : 15, 112…).
 const phone = { type: 'string', pattern: /^\+?\(?[0-9][0-9 .()-]{1,22}$/ };
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const MED_FORMS = [
+  'tablet',
+  'capsule',
+  'syrup',
+  'injection',
+  'drops',
+  'cream',
+  'inhaler',
+  'patch',
+  'suppository',
+  'other',
+];
 
 export const CATEGORY_COLORS = [
   'orange',
@@ -333,6 +347,60 @@ export const COLLECTIONS = {
         column: 'disclaimer_seen_on',
         schema: { type: 'string', pattern: DAY, nullable: true },
       },
+    },
+  },
+
+  med: {
+    table: 'meds',
+    roles: ADMIN,
+    fields: {
+      name: { column: 'name', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+      form: { column: 'form', schema: { enum: MED_FORMS } },
+      strength: { column: 'strength', schema: optionalText(30) },
+      unit: { column: 'unit', schema: { type: 'string', minLength: 1, maxLength: 20 } },
+      instructions: {
+        column: 'instructions',
+        schema: {
+          enum: ['before_meal', 'with_meal', 'after_meal', 'fasting', 'bedtime'],
+          nullable: true,
+        },
+      },
+      color: { column: 'color', schema: { enum: CATEGORY_COLORS } },
+      startDate: { column: 'start_date', schema: { type: 'string', pattern: DAY } },
+      endDate: { column: 'end_date', schema: { type: 'string', pattern: DAY, nullable: true } },
+      active: { column: 'active', schema: { type: 'boolean' } },
+      notes: { column: 'notes', schema: optionalText(500) },
+      schedule: { column: 'schedule', schema: { type: 'json', check: checkSchedule } },
+      reminder: {
+        column: 'reminder',
+        schema: { type: 'json', maxBytes: 1000, check: checkReminder },
+      },
+    },
+  },
+
+  // Id déterministe côté client (médicament + jour + horaire) pour les prises planifiées.
+  doseLog: {
+    table: 'dose_logs',
+    roles: ADMIN,
+    fields: {
+      medId: { column: 'med_id', schema: uuid },
+      date: { column: 'date', schema: { type: 'string', pattern: DAY } },
+      time: { column: 'time', schema: { type: 'string', pattern: TIME } },
+      amount: {
+        column: 'amount',
+        schema: {
+          type: 'number',
+          check: (v) => (isDoseAmount(v) ? null : 'quantité invalide'),
+        },
+      },
+      status: { column: 'status', schema: { enum: ['taken', 'skipped', 'snoozed'] } },
+      takenAt: { column: 'taken_at', schema: { type: 'string', pattern: MINUTE, nullable: true } },
+      snoozeUntil: {
+        column: 'snooze_until',
+        schema: { type: 'string', pattern: MINUTE, nullable: true },
+      },
+      note,
+      scheduled: { column: 'scheduled', schema: { type: 'boolean' } },
     },
   },
 

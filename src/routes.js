@@ -68,6 +68,7 @@ export const ROUTES = [
     icon: 'health',
     roles: ADMIN_ONLY,
     navParent: 'more',
+    subPages: true, // #/health/med/…, #/health/profile, #/health/emergency : retour vers #/health
     render: lazy(() => import('./views/health/index.js'), 'renderHealth'),
   },
   {

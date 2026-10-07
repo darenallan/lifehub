@@ -3,6 +3,8 @@
 import { showToast } from './components/toast.js';
 import { dayKey } from './lib/dates.js';
 import { dueReminders, taskBucket, timeKey } from './lib/tasks.js';
+import { alertText, doseAlerts } from './lib/health/reminders.js';
+import { dosesForDay, missedDoses, nowStamp, parseStamp } from './lib/health/schedule.js';
 
 const CHECK_MS = 30_000;
 const FIRST_CHECK_MS = 3_000; // laisse la première sync arriver
@@ -62,6 +64,39 @@ const goToTasks = () => {
   location.hash = '#/tasks';
 };
 
+const goToHealth = () => {
+  location.hash = '#/health';
+};
+
+/** Pastille sur l'icône de l'app (si le navigateur la gère) : prises à prendre ou manquées. */
+function updateBadge(count) {
+  try {
+    if (count) navigator.setAppBadge?.(count)?.catch(() => {});
+    else navigator.clearAppBadge?.()?.catch(() => {});
+  } catch {
+    // API absente ou refusée : sans conséquence
+  }
+}
+
+/** Rappels de prise. En mode discret, ni le toast ni la notification ne nomment le médicament. */
+async function checkDoses(engine, reminded) {
+  const [meds, logs] = await Promise.all([engine.getAll('med'), engine.getAll('doseLog')]);
+  const now = parseStamp(nowStamp());
+  const pending = dosesForDay(meds, logs, dayKey(), now).filter((d) => d.status === 'due');
+  updateBadge(pending.length + missedDoses(meds, logs, now).length);
+
+  for (const alert of doseAlerts(meds, logs, now, reminded)) {
+    const { title, body } = alertText(alert);
+    showToast(`💊 ${title} · ${body}`, {
+      actionLabel: 'Voir',
+      onAction: goToHealth,
+      persistent: true,
+    });
+    notify(title, body, `dose-${alert.occurrence.date}-${alert.occurrence.time}`);
+    reminded.add(alert.id);
+  }
+}
+
 /** Démarre la surveillance ; retourne la fonction d'arrêt. */
 export function startReminders(engine) {
   let stopped = false;
@@ -88,6 +123,8 @@ export function startReminders(engine) {
       notify('Rappel LifeHub', `${task.title} · ${task.dueTime}`, task.id);
       reminded.add(task.id);
     }
+
+    await checkDoses(engine, reminded);
     saveReminded(today, reminded);
   }
 

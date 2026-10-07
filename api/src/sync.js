@@ -152,10 +152,14 @@ async function upsert(q, def, key, owner, data) {
   const table = ident(def.table);
   const keyCol = ident(keyColumn(def));
   const ownerCol = ident(owner.column);
-  const entries = Object.entries(data).map(([field, value]) => [
-    ident(def.fields[field].column),
-    value,
-  ]);
+  // jsonb : sérialisé ici, sinon le pilote enverrait un tableau JS comme tableau Postgres.
+  const entries = Object.entries(data).map(([field, value]) => {
+    const { column, schema } = def.fields[field];
+    return [
+      ident(column),
+      schema.type === 'json' && value !== null ? JSON.stringify(value) : value,
+    ];
+  });
 
   const sets = [
     ...entries.map(([column], i) => `${column} = $${i + 3}`),

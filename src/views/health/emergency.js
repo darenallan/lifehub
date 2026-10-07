@@ -47,7 +47,7 @@ function emptyCard() {
       { class: 'muted' },
       'Groupe sanguin, allergies et contacts à prévenir : deux minutes suffisent.',
     ),
-    h('a', { class: 'btn btn--primary', href: '#/health' }, 'Remplir ma carte'),
+    h('a', { class: 'btn btn--primary', href: '#/health/profile' }, 'Remplir ma carte'),
   );
 }
 
@@ -98,7 +98,7 @@ function sosCard({ profile, contacts, name }) {
         : h('p', { class: 'muted' }, 'Aucun contact renseigné.'),
     ),
     name ? h('p', { class: 'sos__owner muted' }, `Carte de ${name}`) : null,
-    h('a', { class: 'btn btn--ghost sos__edit', href: '#/health' }, 'Modifier ma carte'),
+    h('a', { class: 'btn btn--ghost sos__edit', href: '#/health/profile' }, 'Modifier ma carte'),
   );
 }
 
