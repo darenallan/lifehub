@@ -95,6 +95,7 @@ describe("flux d'invitation", () => {
       uid: 'coloc-uid',
       email: 'coloc@example.com',
       role: 'member',
+      owner: false,
       houses: [houseId],
     });
     const invites = await db.query('SELECT deleted_at IS NOT NULL AS used FROM house_invites');

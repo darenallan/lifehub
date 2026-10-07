@@ -50,6 +50,7 @@ describe('authentification', () => {
       uid: 'admin-uid',
       email: 'admin@example.com',
       role: 'admin',
+      owner: true,
       houses: [],
     });
     const [row] = await db.query('SELECT display_name, currency, theme FROM profiles');

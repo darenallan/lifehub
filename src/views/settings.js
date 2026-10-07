@@ -9,6 +9,7 @@ import { saveProfile, watchProfile } from '../repos/profile.js';
 import { parseBackup } from '../lib/backup.js';
 import { dayKey } from '../lib/dates.js';
 import { exportBackup, importBackup } from '../repos/extras.js';
+import { accessCard } from './accessCard.js';
 import { card, pageHeader } from './common.js';
 
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -158,6 +159,8 @@ async function confirmWipe() {
 export function renderSettings(outlet, { user, role }) {
   const isAdmin = role === ROLE.ADMIN;
   const { form, input } = nameForm();
+  // Visible seulement si l'API confirme que c'est le propriétaire.
+  const access = isAdmin ? accessCard() : null;
 
   const accountActions = h(
     'div',
@@ -186,6 +189,7 @@ export function renderSettings(outlet, { user, role }) {
         : null,
       card({ title: 'Apparence', body: themeSwitch(isAdmin) }),
       isAdmin ? dataCard() : null,
+      access?.el,
       card({
         title: 'Compte',
         body: [
@@ -198,7 +202,11 @@ export function renderSettings(outlet, { user, role }) {
   );
 
   if (!isAdmin) return null; // profil = donnée perso de l'admin
-  return watchProfile((profile) => {
+  const unsubscribe = watchProfile((profile) => {
     if (document.activeElement !== input) input.value = profile?.displayName ?? '';
   }, reportError);
+  return () => {
+    unsubscribe();
+    access.cleanup();
+  };
 }

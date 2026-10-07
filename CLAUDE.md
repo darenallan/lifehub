@@ -84,7 +84,8 @@ Modèle logique ci-dessous ; chaque collection devient une table avec `user_id` 
 
 ## 5. Rôles et accès (important)
 
-- **Admin** = un seul compte Google, identifié par son e-mail vérifié (`ADMIN_EMAIL`, à me demander, jamais deviné). Seul à avoir accès à tous les modules perso et à **créer la maison, inviter, retirer des membres**.
+- **Propriétaire** = un seul compte Google, identifié par son e-mail vérifié (`ADMIN_EMAIL`, à me demander, jamais deviné). Seul à gérer la **liste des accès** (table `app_users`, Réglages → « Accès à LifeHub », 20 personnes max).
+- **Admin** = le propriétaire **et** chaque e-mail autorisé par lui : chacun a **son propre espace perso** (habitudes, dépenses, tâches, santé), cloisonné par `user_id` (jamais de lecture croisée), et peut créer **sa** maison, y inviter et retirer des membres. Retirer un accès pose `revoked_at` : effet immédiat, données conservées.
 - **Coloc (member)** : accès **uniquement** au module Maison. Aucun accès aux habitudes, dépenses, tâches. L'UI affiche un shell réduit (pas d'onglets perso).
 - **Flux d'invitation** : l'admin saisit l'e-mail du coloc → crée `invites/{email}`. Le coloc se connecte avec Google (e-mail vérifié) → l'app lit son invite → crée `houses/{houseId}/members/{uid}` avec `role:'member'` → supprime l'invite. L'admin peut révoquer à tout moment (suppression du doc `members/{uid}`).
 - Droits des colocs : lire tout ; écrire `stock`, `menu`, `shopping` ; marquer une facture `paid` (champs `paid/paidAt/paidBy` uniquement). L'admin seul crée/modifie/supprime les factures et gère les membres.

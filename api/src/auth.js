@@ -43,10 +43,17 @@ export function createTokenVerifier({ projectId, emulator = false }) {
 
 /**
  * Rôle côté serveur, seule source de vérité :
- * admin = ADMIN_EMAIL ; member = membre actif d'au moins une maison ; sinon null.
+ * admin = propriétaire (ADMIN_EMAIL) ou e-mail autorisé par lui (app_users) : espace perso complet,
+ *         toujours limité à ses propres données (user_id du jeton) ;
+ * member = membre actif d'au moins une maison ; sinon null.
  */
 export async function resolveRole(db, user, adminEmail) {
   if (adminEmail && user.email === adminEmail) return 'admin';
+  const allowed = await db.query(
+    'SELECT 1 FROM app_users WHERE email = $1 AND revoked_at IS NULL',
+    [user.email],
+  );
+  if (allowed.length) return 'admin';
   const rows = await db.query(
     'SELECT 1 FROM house_members WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1',
     [user.uid],
@@ -77,6 +84,11 @@ export function makeAuthenticate({ verifyToken, adminEmail, db }) {
       email: String(claims.email ?? '').toLowerCase(),
       name: typeof claims.name === 'string' ? claims.name : '',
     };
-    request.user = { ...user, role: await resolveRole(db, user, adminEmail) };
+    request.user = {
+      ...user,
+      role: await resolveRole(db, user, adminEmail),
+      // Seul le propriétaire gère la liste des accès.
+      owner: Boolean(adminEmail) && user.email === adminEmail,
+    };
   };
 }

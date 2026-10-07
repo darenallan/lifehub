@@ -1,3 +1,4 @@
+import { registerAccessRoutes } from './access.js';
 import { AuthError } from './auth.js';
 import { seedDefaultCategories } from './defaults.js';
 import { acceptInvites, memberHouses, registerHouseRoutes } from './house.js';
@@ -40,12 +41,13 @@ export function registerRoutes(app, { db, collections, authenticate }) {
   app.get('/healthz', async () => ({ ok: true }));
 
   app.get('/api/me', { preHandler: authenticate }, async (request) => {
-    // Coloc invité : il rejoint sa maison à la première connexion (e-mail vérifié).
-    if (!request.user.role && (await acceptInvites(db, request.user)) > 0) {
+    // Invité dans une maison : il la rejoint à sa connexion (e-mail vérifié), même s'il a
+    // déjà son propre espace (personne autorisée par le propriétaire).
+    if ((await acceptInvites(db, request.user)) > 0 && !request.user.role) {
       request.user.role = 'member';
     }
     requireRole(request);
-    const { uid, email, name, role } = request.user;
+    const { uid, email, name, role, owner } = request.user;
     if (role === 'admin') {
       // Profil créé au premier passage, avec le prénom Google, puis les catégories par défaut.
       await db.query(
@@ -54,10 +56,11 @@ export function registerRoutes(app, { db, collections, authenticate }) {
       );
       await seedDefaultCategories(db, uid);
     }
-    return { uid, email, role, houses: await memberHouses(db, uid) };
+    return { uid, email, role, owner, houses: await memberHouses(db, uid) };
   });
 
   registerHouseRoutes(app, { db, authenticate });
+  registerAccessRoutes(app, { db, authenticate });
 
   // 60 synchros / minute / compte : large pour l'app (une sync par écriture groupée),
   // bloquant pour un script qui martèlerait l'API avec un jeton volé.
