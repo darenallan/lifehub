@@ -1,0 +1,322 @@
+/* ---------- Santé (phase 7) ---------- */
+/* Le rouge (--danger) n'est utilisé que pour ce qui relève de l'urgence : allergies, carte SOS. */
+
+/* Avertissement au premier lancement */
+.health-intro {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+}
+
+.health-intro__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.health-intro__title {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.health-intro__lead {
+  font-size: 1.05rem;
+}
+
+.health-intro__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.health-intro .btn {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+/* Accès à la carte d'urgence */
+.emergency-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-right: calc(var(--space-4) + 20px);
+  color: inherit;
+  text-decoration: none;
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.emergency-link::before {
+  content: '›';
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  transform: translateY(-50%);
+  color: var(--danger);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.emergency-link__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.emergency-link__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Contacts d'urgence */
+.contact-list {
+  display: grid;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.contact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.contact__text {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.contact__text .muted {
+  overflow: hidden;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.contact__call {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.contact-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .contact-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  }
+}
+
+.health-next {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ---------- Carte d'urgence (plein format, lisible par un tiers) ---------- */
+.sos {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+}
+
+.sos__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sos__badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 0 28px var(--danger-soft);
+}
+
+.sos__title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 8vw, 2.6rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.sos__head .muted {
+  margin-top: var(--space-1);
+  font-size: 0.85rem;
+}
+
+.sos__body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sos__label {
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.sos__facts {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-3);
+}
+
+.sos__fact {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.sos__fact strong {
+  font-size: 1.4rem;
+}
+
+.sos__fact--blood {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: linear-gradient(160deg, var(--danger-soft), var(--surface) 70%);
+}
+
+.sos__fact--blood strong {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+/* Sans taille renseignée, le groupe sanguin prend toute la largeur. */
+.sos__fact--blood:only-child {
+  grid-column: 1 / -1;
+}
+
+.sos__block {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sos__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sos__tags li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.sos__tags--danger li {
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.sos__notes {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  white-space: pre-line;
+}
+
+.sos__calls {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Gros boutons d'appel : utilisables d'une main, même par quelqu'un de pressé. */
+.sos__call {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 120ms var(--ease);
+}
+
+.sos__call:active {
+  transform: scale(0.98);
+}
+
+.sos__call-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  color: var(--accent-ink);
+}
+
+.sos__call-text {
+  display: grid;
+  min-width: 0;
+}
+
+.sos__call-text span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sos__owner {
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.sos__empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.sos__edit {
+  justify-self: center;
+}

@@ -63,6 +63,14 @@ export const ROUTES = [
     render: lazy(() => import('./views/more.js'), 'renderMore'),
   },
   {
+    path: 'health',
+    title: 'Santé',
+    icon: 'health',
+    roles: ADMIN_ONLY,
+    navParent: 'more',
+    render: lazy(() => import('./views/health/index.js'), 'renderHealth'),
+  },
+  {
     path: 'review',
     title: 'Revue de la semaine',
     icon: 'today',

@@ -5,6 +5,18 @@ import { pageHeader } from './common.js';
 
 const ITEMS = [
   {
+    href: '#/health',
+    title: 'Santé',
+    text: "Profil santé, contacts d'urgence ; bientôt traitements et mesures.",
+    admin: true,
+  },
+  {
+    href: '#/health/emergency',
+    title: "Carte d'urgence",
+    text: 'Groupe sanguin, allergies, contacts à appeler. Lisible hors ligne.',
+    admin: true,
+  },
+  {
     href: '#/review',
     title: 'Revue de la semaine',
     text: 'Habitudes, dépenses, tâches : le bilan automatique.',

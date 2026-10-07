@@ -18,7 +18,12 @@ export const BACKUP_COLLECTIONS = [
   'dailyGoal',
   'debt',
   'quickNote',
+  'healthProfile',
+  'emergencyContact',
 ];
+
+/** Collections à document unique : leur id est toujours 'me'. */
+const SINGLETONS = new Set(['profile', 'healthProfile']);
 
 export function buildBackup(collections, now = new Date()) {
   return {
@@ -31,7 +36,7 @@ export function buildBackup(collections, now = new Date()) {
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const validId = (collection, id) =>
-  typeof id === 'string' && (collection === 'profile' ? id === 'me' : UUID.test(id));
+  typeof id === 'string' && (SINGLETONS.has(collection) ? id === 'me' : UUID.test(id));
 
 /**
  * Vérifie un fichier d'export. Retourne { ok: true, docs, counts } où docs est la liste

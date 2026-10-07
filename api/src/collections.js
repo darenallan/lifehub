@@ -48,6 +48,10 @@ const uuid = { type: 'string', pattern: UUID };
 // FCFA : entier strictement positif, jamais de flottant.
 const money = { type: 'integer', minimum: 1, maximum: 999999999 };
 const note = { column: 'note', schema: { type: 'string', maxLength: 200, nullable: true } };
+const optionalText = (maxLength) => ({ type: 'string', maxLength, nullable: true });
+// Même motif que la contrainte CHECK de 008_health_phone.sql (numéros courts acceptés : 15, 112…).
+const phone = { type: 'string', pattern: /^\+?\(?[0-9][0-9 .()-]{1,22}$/ };
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const CATEGORY_COLORS = [
   'orange',
@@ -306,6 +310,40 @@ export const COLLECTIONS = {
       text: { column: 'text', schema: { type: 'string', minLength: 1, maxLength: 2000 } },
       pinned: { column: 'pinned', schema: { type: 'boolean' } },
       createdAt: { column: 'created_at', schema: { type: 'string', pattern: MINUTE } },
+    },
+  },
+
+  // ---------- Phase 7 : santé (données sensibles, admin uniquement) ----------
+  healthProfile: {
+    table: 'health_profiles',
+    singleton: true,
+    roles: ADMIN,
+    fields: {
+      bloodGroup: { column: 'blood_group', schema: { enum: BLOOD_GROUPS, nullable: true } },
+      allergies: { column: 'allergies', schema: optionalText(500) },
+      conditions: { column: 'conditions', schema: optionalText(500) },
+      emergencyNotes: { column: 'emergency_notes', schema: optionalText(300) },
+      heightCm: {
+        column: 'height_cm',
+        schema: { type: 'integer', minimum: 50, maximum: 250, nullable: true },
+      },
+      doctorName: { column: 'doctor_name', schema: optionalText(60) },
+      doctorPhone: { column: 'doctor_phone', schema: { ...phone, nullable: true } },
+      disclaimerSeenOn: {
+        column: 'disclaimer_seen_on',
+        schema: { type: 'string', pattern: DAY, nullable: true },
+      },
+    },
+  },
+
+  emergencyContact: {
+    table: 'emergency_contacts',
+    roles: ADMIN,
+    fields: {
+      name: { column: 'name', schema: { type: 'string', minLength: 1, maxLength: 60 } },
+      phone: { column: 'phone', schema: phone },
+      relation: { column: 'relation', schema: optionalText(40) },
+      order: { column: 'sort_order', schema: { type: 'integer', minimum: 0, maximum: 100000 } },
     },
   },
 };

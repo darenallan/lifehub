@@ -10,6 +10,7 @@ import './styles/habits.css';
 import './styles/expenses.css';
 import './styles/tasks.css';
 import './styles/house.css';
+import './styles/health.css';
 import './styles/ambiance.css';
 
 import { registerSW } from 'virtual:pwa-register';

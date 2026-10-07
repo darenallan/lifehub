@@ -40,6 +40,7 @@ export default defineConfig({
         shortcuts: [
           { name: 'Dépense rapide', short_name: 'Dépense', url: '/#/expenses/new' },
           { name: "Aujourd'hui", short_name: "Aujourd'hui", url: '/#/today' },
+          { name: "Carte d'urgence", short_name: 'Urgence', url: '/#/health/emergency' },
         ],
       },
       workbox: {
