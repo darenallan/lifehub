@@ -250,8 +250,21 @@
 .more-item {
   display: grid;
   gap: var(--space-1);
+  padding-right: calc(var(--space-4) + 20px);
   color: inherit;
   text-decoration: none;
+}
+
+/* Chevron : signale que la carte mène à un autre écran. */
+.more-item::before {
+  content: '›';
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  transform: translateY(-50%);
+  color: var(--accent);
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 .more-item:hover {

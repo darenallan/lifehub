@@ -233,7 +233,7 @@ body::after {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
-/* Navigation : trait or sur l'onglet actif (en haut sur mobile, à gauche sur desktop). */
+/* Navigation : pastille sur mobile (components.css), trait or à gauche sur desktop. */
 .nav {
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(12px);
@@ -243,34 +243,27 @@ body::after {
   position: relative;
 }
 
-.nav__link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 30%;
-  right: 30%;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
-  transform: scaleX(0);
-  transition: transform 300ms var(--ease-out);
-}
-
-.nav__link.is-active::before {
-  transform: scaleX(1);
+.nav__link.is-active > .icon {
+  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 @media (min-width: 900px) {
+  .nav__link.is-active > .icon {
+    box-shadow: none;
+  }
+
   .nav__link::before {
+    content: '';
+    position: absolute;
     top: 20%;
     bottom: 20%;
     left: 0;
-    right: auto;
     width: 2px;
-    height: auto;
     border-radius: 0 2px 2px 0;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
     transform: scaleY(0);
+    transition: transform 300ms var(--ease-out);
   }
 
   .nav__link.is-active::before {
@@ -350,7 +343,19 @@ body::after {
 
 .modal {
   box-shadow: var(--shadow);
-  animation: rise 350ms var(--ease-out);
+  animation: sheet-up 380ms var(--ease-out);
+}
+
+@media (min-width: 640px) {
+  .modal {
+    animation: rise 350ms var(--ease-out);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
 }
 
 /* ---------- Keyframes ---------- */
@@ -403,4 +408,25 @@ body::after {
     opacity: 0.35;
     transform: scaleX(1);
   }
+}
+
+/* ---------- Ergonomie tactile (en fin de cascade pour primer sur les tailles des modules) ---------- */
+/* Pas de cible sous 40 px au doigt (44 recommandé ; 40 toléré dans les rangées denses). */
+@media (pointer: coarse) {
+  .btn--sm,
+  .chip {
+    min-height: 40px;
+  }
+
+  .icon-btn,
+  .icon-btn--sm {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Retour visuel à l'appui sur les cartes cliquables (pas de survol sur mobile). */
+a.card:active {
+  transform: scale(0.985);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }

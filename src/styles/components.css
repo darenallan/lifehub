@@ -26,6 +26,22 @@
   letter-spacing: -0.01em;
 }
 
+.topbar__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-right: auto;
+  padding-right: var(--space-3);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Sur un écran secondaire, le retour prend la place du logo. */
+.topbar--sub .topbar__brand {
+  display: none;
+}
+
 .view {
   max-width: var(--content-max);
   margin: 0 auto;
@@ -62,12 +78,31 @@
   min-width: 0;
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   transition: color 150ms var(--ease);
+}
+
+/* Mobile : pastille derrière l'icône de l'onglet actif (cible visuelle nette au pouce). */
+.nav__link > .icon {
+  box-sizing: content-box;
+  padding: 4px 14px;
+  border-radius: 999px;
+  transition:
+    background 250ms var(--ease-out),
+    transform 150ms var(--ease);
+}
+
+.nav__link:active > .icon {
+  transform: scale(0.9);
 }
 
 .nav__link.is-active {
   color: var(--accent);
+  font-weight: 600;
+}
+
+.nav__link.is-active > .icon {
+  background: var(--accent-soft);
 }
 
 .nav__label {
@@ -129,6 +164,12 @@
     background: var(--surface-2);
   }
 
+  .nav__link > .icon,
+  .nav__link.is-active > .icon {
+    padding: 0;
+    background: none;
+  }
+
   .nav__link.is-active .icon {
     color: var(--accent);
   }
@@ -183,6 +224,7 @@
 
 .grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 
@@ -214,6 +256,7 @@
 
 .card__body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
 
@@ -274,6 +317,7 @@
   border: 1px solid transparent;
   background: var(--surface-2);
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background 150ms var(--ease),
@@ -437,23 +481,61 @@
 }
 
 /* ---------- Modale ---------- */
+/* Mobile : feuille ancrée en bas (à portée de pouce). Desktop : boîte centrée. */
 .modal {
-  width: min(calc(100% - 2 * var(--space-4)), 420px);
-  padding: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 92dvh;
+  margin: auto 0 0;
+  padding: 0 0 env(safe-area-inset-bottom);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
   background: var(--surface);
   color: var(--text);
+  overscroll-behavior: contain;
+}
+
+/* Poignée décorative de la feuille. */
+.modal::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 0;
+  border-radius: 999px;
+  background: var(--border);
 }
 
 .modal::backdrop {
-  background: rgb(0 0 0 / 0.55);
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(2px);
 }
 
 .modal__body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--space-4) var(--space-4) var(--space-5);
+}
+
+@media (min-width: 640px) {
+  .modal {
+    width: min(calc(100% - 2 * var(--space-4)), 420px);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    margin: auto;
+    padding: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .modal::before {
+    display: none;
+  }
+
+  .modal__body {
+    padding: var(--space-5);
+  }
 }
 
 .modal__title {

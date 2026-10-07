@@ -44,6 +44,13 @@ textarea {
   color: inherit;
 }
 
+a,
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -75,8 +82,11 @@ textarea {
   color: var(--danger);
 }
 
+/* minmax(0, 1fr) : sans ça, un champ ou une rangée de boutons élargit la colonne
+   au-delà de l'écran (défilement horizontal sur mobile). */
 .stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 

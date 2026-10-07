@@ -52,10 +52,21 @@ function playEnter(outlet) {
   outlet.enterTimer = setTimeout(() => outlet.classList.remove('is-entering'), ENTER_MS);
 }
 
+/** Écran secondaire (navParent) : lien « ‹ Parent » dans la barre du haut. */
+function updateBackLink(link, route) {
+  const parent = route.navParent && ROUTES.find((r) => r.path === route.navParent);
+  link.hidden = !parent;
+  link.closest('.topbar')?.classList.toggle('topbar--sub', Boolean(parent));
+  if (!parent) return;
+  link.href = `#/${parent.path}`;
+  link.textContent = `‹ ${parent.title}`;
+}
+
 function renderShell(state) {
   const nav = createNav(ROUTES, state.role);
   badge = createOfflineBadge();
   const outlet = h('div', { class: 'view' });
+  const backLink = h('a', { class: 'topbar__back', hidden: true });
 
   mount(
     root,
@@ -69,6 +80,7 @@ function renderShell(state) {
         h(
           'header',
           { class: 'topbar' },
+          backLink,
           h('span', { class: 'topbar__brand shimmer' }, 'LifeHub'),
           badge.el,
         ),
@@ -84,6 +96,7 @@ function renderShell(state) {
     getContext: () => ({ user: getState().user, role: getState().role }),
     onRoute: (route) => {
       nav.setActive(route.navParent ?? route.path);
+      updateBackLink(backLink, route);
       playEnter(outlet);
     },
   });

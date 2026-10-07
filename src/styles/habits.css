@@ -1,10 +1,30 @@
 /* ---------- Éléments partagés ajoutés en phase 1 ---------- */
+/* Mobile : titre sur sa ligne, puis barre d'outils pleine largeur (navigation à gauche,
+   actions poussées à droite). À partir de 640 px, tout tient sur une ligne. */
 .page-header--row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+.page-header--row > .row {
+  width: 100%;
+}
+
+.page-header--row > .row > button:first-of-type {
+  margin-left: auto;
+}
+
+@media (min-width: 640px) {
+  .page-header--row > .row {
+    width: auto;
+  }
+
+  .page-header--row > .row > button:first-of-type {
+    margin-left: var(--space-2);
+  }
 }
 
 .icon-btn {
@@ -82,9 +102,10 @@
   text-align: center;
 }
 
-.modal--wide {
-  width: min(calc(100% - 2 * var(--space-4)), 560px);
-  max-height: calc(100dvh - 2 * var(--space-4));
+@media (min-width: 640px) {
+  .modal--wide {
+    width: min(calc(100% - 2 * var(--space-4)), 560px);
+  }
 }
 
 .modal__header {

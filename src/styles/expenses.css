@@ -333,12 +333,24 @@
   height: 56px;
   border: 0;
   border-radius: 50%;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
   color: var(--accent-ink);
   font-size: 1.8rem;
   line-height: 1;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+  box-shadow:
+    0 8px 24px rgb(0 0 0 / 0.3),
+    0 0 24px var(--accent-soft);
   cursor: pointer;
+  transition: transform 150ms var(--ease);
+}
+
+.fab:active {
+  transform: scale(0.92);
+}
+
+/* Le bouton flottant ne doit jamais cacher la dernière carte. */
+.view:has(.fab) {
+  padding-bottom: calc(var(--space-6) + 72px);
 }
 
 @media (min-width: 900px) {
