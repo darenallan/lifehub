@@ -1,6 +1,6 @@
 // Web Push (phase 7.6a) : abonnement de cet appareil et envoi du planning au serveur.
 // Le planning est recalculé par la boucle des rappels et n'est renvoyé que s'il a changé.
-import { planReminders, planSignature } from './lib/health/pushPlan.js';
+import { planReminders, planSignature, wallToDate } from './lib/health/pushPlan.js';
 import { nowStamp, parseStamp } from './lib/health/schedule.js';
 import {
   pushPublicKey,
@@ -87,13 +87,6 @@ export async function disablePush() {
   if (state?.id) await revokePushDevice(state.id);
 }
 
-/** Heure murale de l'appareil 'YYYY-MM-DDTHH:mm' → instant absolu pour le serveur. */
-function wallToIso(stamp) {
-  const [y, m, d] = stamp.slice(0, 10).split('-').map(Number);
-  const [hh, mm] = stamp.slice(11).split(':').map(Number);
-  return new Date(y, m - 1, d, hh, mm).toISOString();
-}
-
 /** Envoie le planning des 7 prochains jours si l'appareil est abonné et qu'il a changé. */
 export async function syncPushSchedule(engine) {
   const state = readState();
@@ -106,6 +99,8 @@ export async function syncPushSchedule(engine) {
   const plan = planReminders(meds, logs, appointments, parseStamp(nowStamp()));
   const signature = planSignature(plan);
   if (signature === state.signature) return;
-  await sendPushSchedule(plan.map((r) => ({ tag: r.tag, kind: r.kind, fireAt: wallToIso(r.at) })));
+  await sendPushSchedule(
+    plan.map((r) => ({ tag: r.tag, kind: r.kind, fireAt: wallToDate(r.at).toISOString() })),
+  );
   writeState({ ...state, signature });
 }

@@ -68,6 +68,36 @@ Sans les trois variables ci-dessous, l'app marche normalement mais la carte « R
 - Chaque appareil envoie le planning des 7 prochains jours quand il change : un appareil qui n'ouvre pas l'app pendant plus de 7 jours ne recevra plus de rappels au-delà.
 - Tester : `curl -X POST -H "x-cron-secret: <secret>" https://lifehub-api-pryz.onrender.com/api/push/tick` doit répondre `{"sent":0}` (ou plus).
 
+## Appli Android (Capacitor)
+
+Le même code web, empaqueté dans une appli Android (`android/`, identifiant `app.lifehub.mobile`) : alarmes locales exactes (prises, rendez-vous) qui sonnent **même sans réseau**, et connexion Google native (Google interdit la connexion dans une WebView). Les données passent par la même API.
+
+**Une seule fois :**
+
+1. **Empreinte SHA-1** de la clé de debug (celle d'Android Studio) :
+   ```powershell
+   & "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -list -v -keystore "$env:USERPROFILE\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android
+   ```
+   Copier la ligne `SHA1:`. (Pour une version signée « release », faire de même avec ta propre clé ; ne jamais la committer.)
+2. **Firebase** → Paramètres du projet → Vos applications → Ajouter une application → **Android** : nom du paquet `app.lifehub.mobile`, empreinte SHA-1. Le fichier `google-services.json` proposé n'est **pas** nécessaire (on n'utilise pas le SDK Firebase Android).
+3. **ID client Web** : Firebase → Authentication → Sign-in method → Google → « Configuration du SDK Web » → **ID client Web** (finit par `.apps.googleusercontent.com`).
+4. **Render** → `ALLOWED_ORIGINS` : ajouter `,https://localhost` (origine de l'appli), puis redéployer.
+5. **Google Cloud** → clé API « Browser key » → restrictions : ajouter le site `https://localhost/*` (la WebView de l'appli l'envoie comme référent).
+
+**Construire et installer :**
+
+```bash
+cp .env.android.example .env.android   # puis renseigner (mêmes valeurs que Vercel + VITE_GOOGLE_WEB_CLIENT_ID)
+npm run build:android                  # build web (mode android) + copie dans android/
+npm run android                        # ouvre Android Studio
+```
+
+Dans Android Studio : brancher le téléphone (options développeur → débogage USB) et ▶ Run, ou Build → Build App Bundle(s) / APK(s) → Build APK(s) pour un fichier à installer.
+
+**Dans l'appli :** Plus → Réglages → « Alarmes de l'appli » → Activer, puis autoriser « Alarmes et rappels » si Android le demande. Si le téléphone économise la batterie de façon agressive, exclure LifeHub de l'optimisation. Les alarmes couvrent 7 jours et sont reprogrammées à chaque ouverture : ouvrir l'appli au moins une fois par semaine.
+
+À savoir : `npm audit` signale une faille « modérée » dans `uuid`, via `@capacitor/cli` → `xcode` (outillage iOS en ligne de commande, jamais embarqué dans l'appli). Le correctif proposé rétrograde la CLI : ignoré volontairement.
+
 ## Réglages de sécurité en place
 
 - **Clé API Firebase** (Google Cloud → API et services → Identifiants → « Browser key (auto created by Firebase) ») : restreinte aux sites `https://lifehub-jade-ten.vercel.app/*` et `https://lifehub-1d337.firebaseapp.com/*` (le second sert à la fenêtre de connexion Google), et aux 25 API par défaut de Firebase.

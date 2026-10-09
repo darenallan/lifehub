@@ -2,6 +2,7 @@ import {
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -11,6 +12,7 @@ import { auth } from './firebase.js';
 import { cacheRole, readCachedRole, ROLE } from './lib/roles.js';
 import { endSession, startSession } from './session.js';
 import { deleteLocalData } from './sync/engine.js';
+import { isNative, nativeGoogleIdToken, nativeGoogleLogout } from './native.js';
 import { getState, setState } from './store.js';
 
 const provider = new GoogleAuthProvider();
@@ -28,6 +30,7 @@ const ERROR_MESSAGES = {
   'auth/network-request-failed': 'Pas de réseau : la première connexion nécessite Internet.',
   'auth/unauthorized-domain': "Ce domaine n'est pas autorisé dans Firebase Auth.",
   'auth/user-disabled': 'Ce compte est désactivé.',
+  'native/no-token': 'Connexion annulée.',
 };
 
 export function authErrorMessage(err) {
@@ -85,7 +88,9 @@ export async function refreshRole() {
 }
 
 export function initAuth() {
-  getRedirectResult(auth).catch((err) => setState({ authError: authErrorMessage(err) }));
+  if (!isNative()) {
+    getRedirectResult(auth).catch((err) => setState({ authError: authErrorMessage(err) }));
+  }
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -110,9 +115,18 @@ export function initAuth() {
 export async function signIn() {
   setState({ authError: null });
   try {
+    if (isNative()) {
+      // Appli Android : Google interdit la connexion dans une WebView ; on passe par le
+      // sélecteur de compte natif, puis Firebase échange le jeton Google.
+      const idToken = await nativeGoogleIdToken();
+      await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+      return;
+    }
     await signInWithPopup(auth, provider);
   } catch (err) {
-    if (FALLBACK_TO_REDIRECT.has(err?.code)) return signInWithRedirect(auth, provider);
+    if (!isNative() && FALLBACK_TO_REDIRECT.has(err?.code)) {
+      return signInWithRedirect(auth, provider);
+    }
     setState({ authError: authErrorMessage(err) });
   }
 }
@@ -123,4 +137,5 @@ export async function logout({ clearCache = false } = {}) {
   await endSession({ wipe: clearCache });
   if (clearCache && uid) cacheRole(uid, null);
   await signOut(auth);
+  await nativeGoogleLogout();
 }

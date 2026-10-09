@@ -6,3 +6,5 @@ CLAUDE.md
 *.log
 api/.data
 api/package-lock.json
+# Projet natif généré par Capacitor (Gradle, assets copiés)
+android/

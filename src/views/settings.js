@@ -10,6 +10,8 @@ import { parseBackup } from '../lib/backup.js';
 import { dayKey } from '../lib/dates.js';
 import { exportBackup, importBackup } from '../repos/extras.js';
 import { accessCard } from './accessCard.js';
+import { isNative } from '../native.js';
+import { alarmsCard } from './alarmsCard.js';
 import { pushCard } from './pushCard.js';
 import { card, pageHeader } from './common.js';
 
@@ -162,7 +164,8 @@ export function renderSettings(outlet, { user, role }) {
   const { form, input } = nameForm();
   // Visible seulement si l'API confirme que c'est le propriétaire.
   const access = isAdmin ? accessCard() : null;
-  const push = isAdmin ? pushCard() : null;
+  // Appli Android : alarmes locales ; navigateur : Web Push.
+  const push = isAdmin ? (isNative() ? alarmsCard() : pushCard()) : null;
 
   const accountActions = h(
     'div',

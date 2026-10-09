@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-  { ignores: ['api/.data/', 'dist/', 'dev-dist/', 'node_modules/', 'coverage/'] },
+  { ignores: ['api/.data/', 'dist/', 'dev-dist/', 'node_modules/', 'coverage/', 'android/'] },
   js.configs.recommended,
   {
     languageOptions: {

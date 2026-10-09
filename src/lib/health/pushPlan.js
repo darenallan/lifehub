@@ -61,5 +61,12 @@ export function planReminders(meds, logs, appointments, now, days = 7) {
     .map(({ tag, kind, minutes }) => ({ tag, kind, at: formatStamp(minutes) }));
 }
 
+/** Heure murale de l'appareil 'YYYY-MM-DDTHH:mm' → Date (instant absolu, fuseau de l'appareil). */
+export function wallToDate(stamp) {
+  const [y, m, d] = stamp.slice(0, 10).split('-').map(Number);
+  const [hh, mm] = stamp.slice(11).split(':').map(Number);
+  return new Date(y, m - 1, d, hh, mm);
+}
+
 /** Empreinte du planning : on ne renvoie au serveur que si elle change. */
 export const planSignature = (plan) => plan.map((r) => `${r.tag}@${r.at}`).join(',');

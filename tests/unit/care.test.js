@@ -16,7 +16,8 @@ import {
   whenLabel,
 } from '../../src/lib/health/care.js';
 import { allTypes } from '../../src/lib/health/measures.js';
-import { planReminders, planSignature } from '../../src/lib/health/pushPlan.js';
+import { planReminders, planSignature, wallToDate } from '../../src/lib/health/pushPlan.js';
+import { alarmId } from '../../src/native.js';
 import { csvCell, dosesCsv, measuresCsv, toCsv } from '../../src/lib/health/report.js';
 import { parseStamp } from '../../src/lib/health/schedule.js';
 
@@ -270,5 +271,21 @@ describe('planning Web Push', () => {
     const plan = planReminders([], [], appointments, at('2026-10-08T12:00'));
     expect(plan.map((r) => `${r.tag} ${r.at}`)).toEqual(['rdv|r1|hours 2026-10-09T08:00']);
     expect(planSignature(plan)).toBe('rdv|r1|hours@2026-10-09T08:00');
+  });
+});
+
+describe('alarmes de l’appli Android', () => {
+  it('identifiant numérique stable et positif par étiquette', () => {
+    const id = alarmId('dose-2026-10-09-08:00');
+    expect(id).toBe(alarmId('dose-2026-10-09-08:00'));
+    expect(id).not.toBe(alarmId('dose-2026-10-09-20:00'));
+    expect(Number.isInteger(id) && id >= 0 && id <= 0x7fffffff).toBe(true);
+  });
+
+  it("heure murale → date locale de l'appareil", () => {
+    const d = wallToDate('2026-10-09T07:55');
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]).toEqual([
+      2026, 9, 9, 7, 55,
+    ]);
   });
 });

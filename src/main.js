@@ -21,6 +21,7 @@ import { showToast } from './components/toast.js';
 import { h, mount } from './lib/dom.js';
 import { ROLE } from './lib/roles.js';
 import { applyTheme } from './lib/theme.js';
+import { listenAlarmTaps } from './native.js';
 import { createRouter, parseHash } from './router.js';
 import { ROUTES } from './routes.js';
 import { getState, setState, subscribe } from './store.js';
@@ -181,3 +182,4 @@ const updateSW = registerSW({
 subscribe(renderApp);
 renderApp(getState());
 initAuth();
+listenAlarmTaps().catch(() => {});
