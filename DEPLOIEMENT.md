@@ -84,6 +84,8 @@ Le même code web, empaqueté dans une appli Android (`android/`, identifiant `a
 4. **Render** → `ALLOWED_ORIGINS` : ajouter `,https://localhost` (origine de l'appli), puis redéployer.
 5. **Google Cloud** → clé API « Browser key » → restrictions : ajouter le site `https://localhost/*` (la WebView de l'appli l'envoie comme référent).
 
+**Java 21 obligatoire** (les plugins Capacitor 8 l'exigent ; Java 25 fait planter Gradle 8.14). Temurin 21 est installé (`C:\Program Files\Eclipse Adoptium\jdk-21…`) : dans Android Studio, Settings → Build, Execution, Deployment → Build Tools → Gradle → **Gradle JDK** = Temurin 21.
+
 **Construire et installer :**
 
 ```bash
