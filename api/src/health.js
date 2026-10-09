@@ -119,3 +119,77 @@ export function checkReminder(r) {
   if (!isInt(r.snoozeMin, 5, 240)) return 'snoozeMin invalide';
   return null;
 }
+
+// ---------- Mesures et journal (phase 7.3) ----------
+
+export const MEASURE_FIELDS = ['value', 'sys', 'dia', 'pulse'];
+const twoDecimals = (v) => Math.abs(Math.round(v * 100) - v * 100) < 1e-9;
+const isReading = (v) =>
+  typeof v === 'number' && Number.isFinite(v) && v >= -100 && v <= 100000 && twoDecimals(v);
+
+/** { value } ou { sys, dia, pulse? } : nombres bornés, 2 décimales au plus. */
+export function checkMeasureValues(values) {
+  const keys = Object.keys(values);
+  if (keys.length < 1 || keys.length > 3) return '1 à 3 valeurs';
+  if (!keys.every((k) => MEASURE_FIELDS.includes(k))) return 'champ de mesure inconnu';
+  if (!keys.every((k) => isReading(values[k]))) return 'valeur invalide';
+  return null;
+}
+
+/** { champ: { min, max } } : bornes saisies par l'utilisateur, min ≤ max. */
+export function checkTargets(targets) {
+  for (const [key, range] of Object.entries(targets)) {
+    if (!MEASURE_FIELDS.includes(key)) return 'champ de cible inconnu';
+    if (!isPlainObject(range)) return 'cible invalide';
+    const keys = Object.keys(range);
+    if (keys.length !== 2 || !keys.includes('min') || !keys.includes('max')) {
+      return 'cible : min et max attendus';
+    }
+    const { min, max } = range;
+    if (![min, max].every((v) => v === null || isReading(v))) return 'cible invalide';
+    if (min !== null && max !== null && min > max) return 'cible : min > max';
+  }
+  return null;
+}
+
+const shortText = (v, max) => typeof v === 'string' && v.trim().length >= 1 && v.length <= max;
+
+/** [{ name, severity 1..5, note|null }], 20 max, sans doublon de nom. */
+export function checkSymptoms(list) {
+  if (list.length > 20) return '20 symptômes maximum';
+  const seen = new Set();
+  for (const s of list) {
+    const keysOk =
+      isPlainObject(s) &&
+      Object.keys(s).length === 3 &&
+      ['name', 'severity', 'note'].every((k) => k in s);
+    if (!keysOk || !shortText(s.name, 40) || !isInt(s.severity, 1, 5)) return 'symptôme invalide';
+    if (s.note !== null && !(typeof s.note === 'string' && s.note.length <= 100)) {
+      return 'note de symptôme invalide';
+    }
+    const key = s.name.trim().toLowerCase();
+    if (seen.has(key)) return 'symptôme en double';
+    seen.add(key);
+  }
+  return null;
+}
+
+/** Tags libres : 20 max, 30 caractères, sans doublon. */
+export function checkTags(list) {
+  if (list.length > 20) return '20 tags maximum';
+  if (!list.every((t) => shortText(t, 30))) return 'tag invalide';
+  if (new Set(list.map((t) => t.trim().toLowerCase())).size !== list.length) return 'tag en double';
+  return null;
+}
+
+// ---------- Rendez-vous (phase 7.4) ----------
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Médicaments liés à un rendez-vous : 20 ids max, sans doublon. */
+export function checkMedIds(list) {
+  if (list.length > 20) return '20 médicaments maximum';
+  if (!list.every((id) => typeof id === 'string' && UUID.test(id))) return 'identifiant invalide';
+  if (new Set(list).size !== list.length) return 'médicament en double';
+  return null;
+}

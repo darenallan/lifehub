@@ -93,3 +93,66 @@ export function barChart(items, { height = 80, label, showLabels = true } = {}) 
   }
   return figure;
 }
+
+/**
+ * Courbe(s) dans le temps. lines : [{ points: [{ t, v }], className }] (t en minutes murales).
+ * band : { min, max } = plage cible saisie par l'utilisateur (bornes null = ouvertes).
+ * Axe x de `from` à `to` ; axe y ajusté aux valeurs et à la plage, avec une marge.
+ */
+export function lineChart(lines, { from, to, band = null, height = 140, label } = {}) {
+  const width = 320;
+  const pad = 6;
+  const values = lines.flatMap((l) => l.points.map((p) => p.v));
+  const bounds = [...values, band?.min, band?.max].filter((v) => v != null);
+  let lo = Math.min(...bounds);
+  let hi = Math.max(...bounds);
+  if (lo === hi) {
+    lo -= 1;
+    hi += 1;
+  }
+  const margin = (hi - lo) * 0.12;
+  lo -= margin;
+  hi += margin;
+  const x = (t) => pad + ((t - from) / Math.max(1, to - from)) * (width - 2 * pad);
+  const y = (v) => pad + (1 - (v - lo) / (hi - lo)) * (height - 2 * pad);
+
+  const bandRect =
+    band && (band.min != null || band.max != null)
+      ? svg('rect', {
+          class: 'line__band',
+          x: 0,
+          width,
+          y: y(band.max ?? hi),
+          height: Math.max(0, y(band.min ?? lo) - y(band.max ?? hi)),
+        })
+      : null;
+
+  return h(
+    'figure',
+    { class: 'line' },
+    svg(
+      'svg',
+      {
+        viewBox: `0 0 ${width} ${height}`,
+        class: 'line__svg',
+        role: 'img',
+        'aria-label': label ?? '',
+      },
+      bandRect,
+      lines.map((l) =>
+        svg(
+          'g',
+          { class: l.className ?? 'line__series' },
+          l.points.length > 1
+            ? svg('polyline', {
+                class: 'line__path',
+                fill: 'none',
+                points: l.points.map((p) => `${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' '),
+              })
+            : null,
+          l.points.map((p) => svg('circle', { class: 'line__dot', cx: x(p.t), cy: y(p.v), r: 3 })),
+        ),
+      ),
+    ),
+  );
+}

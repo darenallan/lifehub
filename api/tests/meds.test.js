@@ -71,7 +71,16 @@ describe('médicaments', () => {
     const id = randomUUID();
     const res = await send(TOKENS.admin, patch('med', id, med()));
     expect(res.rejected).toEqual([]);
-    expect(res.changes.find((c) => c.docId === id).data).toEqual(med());
+    // Champs de stock (7.2) absents à la création : null.
+    const noStock = {
+      stockQty: null,
+      stockAt: null,
+      refillAt: null,
+      pharmacy: null,
+      price: null,
+      packSize: null,
+    };
+    expect(res.changes.find((c) => c.docId === id).data).toEqual({ ...med(), ...noStock });
   });
 
   it('remplace le planning en entier lors d’un patch', async () => {

@@ -48,8 +48,9 @@ export function checkValue(schema, value) {
     // Objet structuré (stocké en jsonb) : forme vérifiée par schema.check, qui ne doit jamais
     // recopier de valeur dans son message (les refus sont journalisés).
     case 'json':
-      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-        return 'doit être un objet';
+      if (value === null || typeof value !== 'object') return 'doit être un objet';
+      if (Array.isArray(value) !== Boolean(schema.array)) {
+        return schema.array ? 'doit être une liste' : 'doit être un objet';
       }
       if (JSON.stringify(value).length > (schema.maxBytes ?? 4000)) return 'trop volumineux';
       return schema.check(value);

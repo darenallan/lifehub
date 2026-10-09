@@ -1,6 +1,6 @@
 // Santé · profil et contacts d'urgence (#/health/profile) : ce qui alimente la carte d'urgence.
 // Rien n'est pré-rempli ni interprété : tout vient de la saisie de l'utilisateur.
-import { confirmDialog } from '../../components/modal.js';
+import { confirmDialog, openDialog } from '../../components/modal.js';
 import { reportError, showToast } from '../../components/toast.js';
 import { h, mount } from '../../lib/dom.js';
 import {
@@ -13,6 +13,7 @@ import {
 } from '../../lib/health/emergency.js';
 import { icon } from '../../lib/icons.js';
 import {
+  deleteAllHealthData,
   deleteEmergencyContact,
   saveEmergencyContact,
   saveHealthProfile,
@@ -223,6 +224,52 @@ function contactsCard(contacts) {
   });
 }
 
+/** Suppression de toutes les données de santé : confirmation forte (mot à taper). */
+function openDeleteAll() {
+  const word = h('input', {
+    class: 'input',
+    autocomplete: 'off',
+    'aria-label': 'Tape SUPPRIMER pour confirmer',
+    placeholder: 'SUPPRIMER',
+  });
+  let dialog;
+  const submit = async (e) => {
+    e.preventDefault();
+    if (word.value.trim() !== 'SUPPRIMER') {
+      showToast('Tape SUPPRIMER en majuscules pour confirmer.', { tone: 'danger' });
+      return;
+    }
+    try {
+      const count = await deleteAllHealthData();
+      dialog.close();
+      showToast(`Données de santé supprimées (${count} élément(s)).`);
+      location.hash = '#/health';
+    } catch (err) {
+      reportError(err);
+    }
+  };
+  dialog = openDialog({
+    title: 'Supprimer toutes mes données de santé ?',
+    content: h(
+      'form',
+      { class: 'stack', onsubmit: submit },
+      h(
+        'p',
+        {},
+        "Traitements, prises, stock, mesures, journal, profil santé et contacts d'urgence seront supprimés sur tous tes appareils.",
+      ),
+      h(
+        'p',
+        { class: 'muted' },
+        "Les dépenses de pharmacie et l'humeur/sommeil (Habitudes) sont conservés. Pense à exporter tes données avant (Réglages → Mes données).",
+      ),
+      h('label', { class: 'field' }, h('span', { class: 'field__label' }, 'Tape SUPPRIMER'), word),
+      h('button', { class: 'btn btn--danger btn--lg', type: 'submit' }, 'Tout supprimer'),
+    ),
+  });
+  word.focus();
+}
+
 export function renderHealthProfile(outlet) {
   const state = { profile: undefined, contacts: [] };
   const form = h('div');
@@ -243,6 +290,21 @@ export function renderHealthProfile(outlet) {
       form,
       contacts,
       h('a', { class: 'btn btn--ghost', href: '#/health/emergency' }, "Voir ma carte d'urgence"),
+      card({
+        title: 'Zone sensible',
+        body: [
+          h(
+            'p',
+            { class: 'muted' },
+            'Tes données de santé sont sur cet appareil et sur ton serveur LifeHub, jamais chez un tiers.',
+          ),
+          h(
+            'button',
+            { class: 'btn btn--danger', type: 'button', onclick: openDeleteAll },
+            'Supprimer toutes mes données de santé',
+          ),
+        ],
+      }),
     ),
   );
 

@@ -18,7 +18,16 @@ import { budgetLine } from './expenses.js';
 import { goalsCard } from './goals.js';
 import { taskRow } from './tasks.js';
 import { summaryCards } from './todaySummary.js';
-import { dosesForDay, missedDoses, nowStamp, parseStamp } from '../lib/health/schedule.js';
+import { appointmentTitle, appointmentsOn, whenLabel } from '../lib/health/care.js';
+import {
+  dayFromIndex,
+  dayIndex,
+  dosesForDay,
+  missedDoses,
+  nowStamp,
+  parseStamp,
+} from '../lib/health/schedule.js';
+import { watchCare } from '../repos/health.js';
 import { watchMedsAndLogs } from '../repos/meds.js';
 import { doseList, openCatchUp } from './health/doses.js';
 
@@ -231,6 +240,44 @@ function dosesTodayCard() {
   };
 }
 
+/** Rendez-vous médicaux d'aujourd'hui et de demain ; masquée s'il n'y en a pas. */
+function appointmentsTodayCard() {
+  const body = h('ul', { class: 'appt-list' });
+  const el = card({
+    title: 'Rendez-vous',
+    iconName: 'today',
+    body,
+    footer: h('a', { class: 'link', href: '#/health/care' }, 'Tous les rendez-vous →'),
+  });
+  el.hidden = true;
+  const cleanup = watchCare(({ appointments, doctors }) => {
+    const today = dayKey();
+    const tomorrow = dayFromIndex(dayIndex(today) + 1);
+    const soon = [
+      ...appointmentsOn(appointments, today),
+      ...appointmentsOn(appointments, tomorrow),
+    ];
+    el.hidden = !soon.length;
+    mount(
+      body,
+      soon.map((a) =>
+        h(
+          'li',
+          { class: 'appt' },
+          h(
+            'a',
+            { class: 'appt__body', href: '#/health/care' },
+            h('span', { class: 'appt__when' }, whenLabel(a.at, today, tomorrow)),
+            h('strong', {}, appointmentTitle(a, doctors)),
+            a.reason ? h('span', { class: 'muted' }, a.reason) : null,
+          ),
+        ),
+      ),
+    );
+  }, reportError);
+  return { el, cleanup };
+}
+
 /** Tâches en retard et du jour (5 premières), cochables. */
 function tasksTodayCard() {
   const today = dayKey();
@@ -268,6 +315,7 @@ export function renderToday(outlet, { user }) {
   const goals = goalsCard();
   const tasks = tasksTodayCard();
   const doses = dosesTodayCard();
+  const appointments = appointmentsTodayCard();
   const habits = habitsTodayCard();
   const spending = spendingTodayCard();
   const bills = billsTodayCard();
@@ -285,6 +333,7 @@ export function renderToday(outlet, { user }) {
     { class: 'grid' },
     summary.dayEl,
     doses.el,
+    appointments.el,
     goals.el,
     tasks.el,
     habits.el,
@@ -306,6 +355,7 @@ export function renderToday(outlet, { user }) {
     goals.cleanup();
     tasks.cleanup();
     doses.cleanup();
+    appointments.cleanup();
     habits.cleanup();
     spending.cleanup();
     bills.cleanup();

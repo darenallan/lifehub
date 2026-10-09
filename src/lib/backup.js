@@ -22,6 +22,12 @@ export const BACKUP_COLLECTIONS = [
   'emergencyContact',
   'med',
   'doseLog',
+  'medRefill',
+  'measureType',
+  'measure',
+  'healthJournal',
+  'doctor',
+  'appointment',
 ];
 
 /** Collections à document unique : leur id est toujours 'me'. */

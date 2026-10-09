@@ -4,7 +4,15 @@ import { showToast } from './components/toast.js';
 import { dayKey } from './lib/dates.js';
 import { dueReminders, taskBucket, timeKey } from './lib/tasks.js';
 import { alertText, doseAlerts } from './lib/health/reminders.js';
-import { dosesForDay, missedDoses, nowStamp, parseStamp } from './lib/health/schedule.js';
+import { appointmentAlerts, appointmentTitle, whenLabel } from './lib/health/care.js';
+import {
+  dayFromIndex,
+  dayIndex,
+  dosesForDay,
+  missedDoses,
+  nowStamp,
+  parseStamp,
+} from './lib/health/schedule.js';
 
 const CHECK_MS = 30_000;
 const FIRST_CHECK_MS = 3_000; // laisse la première sync arriver
@@ -97,6 +105,32 @@ async function checkDoses(engine, reminded) {
   }
 }
 
+/** Rappels de rendez-vous médicaux (la veille et quelques heures avant). */
+async function checkAppointments(engine, reminded) {
+  const [appointments, doctors] = await Promise.all([
+    engine.getAll('appointment'),
+    engine.getAll('doctor'),
+  ]);
+  const now = nowStamp();
+  const today = now.slice(0, 10);
+  const tomorrow = dayFromIndex(dayIndex(today) + 1);
+  for (const { id, appointment } of appointmentAlerts(appointments, parseStamp(now), reminded)) {
+    const title = `Rendez-vous : ${appointmentTitle(appointment, doctors)}`;
+    const body = whenLabel(appointment.at, today, tomorrow);
+    showToast(`📅 ${title} · ${body}`, {
+      actionLabel: 'Voir',
+      onAction: goToCare,
+      persistent: true,
+    });
+    notify(title, body, id);
+    reminded.add(id);
+  }
+}
+
+const goToCare = () => {
+  location.hash = '#/health/care';
+};
+
 /** Démarre la surveillance ; retourne la fonction d'arrêt. */
 export function startReminders(engine) {
   let stopped = false;
@@ -125,6 +159,7 @@ export function startReminders(engine) {
     }
 
     await checkDoses(engine, reminded);
+    await checkAppointments(engine, reminded);
     saveReminded(today, reminded);
   }
 

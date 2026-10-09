@@ -643,3 +643,553 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ---------- Stock (phase 7.2) ---------- */
+.stock-badge {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.stock-badge--low {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.stock-badge--out {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ---------- Mesures (phase 7.3) ---------- */
+.measure-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .measure-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .measure-grid--compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.measure-tile {
+  display: grid;
+  gap: 2px;
+  height: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 120ms var(--ease);
+}
+
+.measure-tile:active {
+  transform: scale(0.97);
+}
+
+.measure-tile--off {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+}
+
+.measure-tile__label {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.measure-tile__value {
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.measure-tile__meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.measure-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.measure-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.measure-row:last-child {
+  border-bottom: 0;
+}
+
+.measure-row__text {
+  flex: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.measure-row__text .muted {
+  font-size: 0.8rem;
+}
+
+.measure-row--off strong {
+  color: var(--warn);
+}
+
+/* Courbe : SVG pleine largeur, couleurs par classes (pas de style inline : CSP). */
+.line {
+  margin: var(--space-2) 0 0;
+}
+
+.line__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.line__band {
+  fill: var(--accent-soft);
+}
+
+.line__path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.line__dot {
+  fill: var(--accent);
+}
+
+.line__series--dia .line__path {
+  stroke: var(--accent-3);
+  stroke-dasharray: 4 3;
+}
+
+.line__series--dia .line__dot {
+  fill: var(--accent-3);
+}
+
+.view.is-entering .line__path {
+  stroke-dasharray: 1000;
+  animation: line-draw 1200ms var(--ease-out) 200ms both;
+}
+
+@keyframes line-draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------- Journal (phase 7.3) ---------- */
+.scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.scale__btn {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 150ms var(--ease),
+    transform 120ms var(--ease);
+}
+
+.scale__btn:active {
+  transform: scale(0.94);
+}
+
+.scale__btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.symptom-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.symptom {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.symptom__name {
+  font-weight: 600;
+}
+
+.symptom .scale__btn {
+  min-height: 36px;
+  font-size: 0.9rem;
+}
+
+.range {
+  flex: 1;
+  accent-color: var(--accent);
+  min-height: 44px;
+}
+
+.range__value {
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+/* ---------- Rendez-vous et contacts (phase 7.4) ---------- */
+.appt-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.appt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.appt:last-child {
+  border-bottom: 0;
+}
+
+.appt__body {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.appt__when {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.appt__body .muted {
+  font-size: 0.85rem;
+}
+
+.appt__status {
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.appt--cancelled strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.appt__notes {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: pre-line;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.contact__text--button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ---------- Statistiques (phase 7.5) ---------- */
+.rate-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rate-row {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.rate-row__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.rate-row__pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rate-row .muted {
+  font-size: 0.8rem;
+}
+
+.meter {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.meter__bar {
+  display: block;
+  width: var(--pct, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-3), var(--accent));
+  transition: width 600ms var(--ease-out);
+}
+
+/* Calendrier du mois : 7 colonnes, lundi en premier. */
+.heat {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.heat__head {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.heat__cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat__cell--blank {
+  background: none;
+}
+
+.heat__cell--full {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.heat__cell--partial {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface-2));
+  color: var(--text);
+}
+
+.heat__cell--low {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.heat__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.heat__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* ---------- Rapport pour le médecin (phase 7.5) ---------- */
+.report {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.report-head h1 {
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.report-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.report-section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.report-section h2 {
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.report-section h3 {
+  font-size: 0.9rem;
+}
+
+.report-section ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.report-measure {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Les tableaux défilent dans leur cadre sur mobile, sans élargir la page. */
+.report-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.report-table th,
+.report-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-table th {
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.report-dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.report-dl > div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report-dl dt {
+  min-width: 8rem;
+  color: var(--muted);
+}
+
+.report-dl dd {
+  margin: 0;
+}
+
+/* Impression (« Enregistrer en PDF ») : seulement le rapport, noir sur blanc, sans décor. */
+@media print {
+  :root,
+  :root[data-theme='light'] {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f2f2f2;
+    --border: #ccc;
+    --text: #111;
+    --muted: #555;
+    --accent: #333;
+    --accent-2: #333;
+    --accent-3: #777;
+    --accent-soft: rgb(0 0 0 / 0.06);
+  }
+
+  body::after,
+  .decor,
+  .nav,
+  .topbar,
+  .toasts,
+  .no-print {
+    display: none !important;
+  }
+
+  .main,
+  .view {
+    padding: 0;
+    max-width: none;
+  }
+
+  .app {
+    display: block;
+  }
+
+  .report {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .report-table {
+    display: table;
+    overflow: visible;
+  }
+
+  .report-section,
+  .report-measure {
+    break-inside: avoid;
+  }
+}

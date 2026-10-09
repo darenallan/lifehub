@@ -13,8 +13,12 @@ import {
   WEEKDAY_LABELS,
   parseAmount,
 } from '../../lib/health/meds.js';
+import { nowStamp } from '../../lib/health/schedule.js';
+import { stockStatus, tracksStock } from '../../lib/health/stock.js';
+import { parseAmount as parseXOF } from '../../lib/money.js';
 import { deleteMed, saveMed, watchMedsAndLogs } from '../../repos/meds.js';
 import { card, pageHeader } from '../common.js';
+import { openRefillSheet, openStockSheet, stockBadge } from './stock.js';
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -195,7 +199,106 @@ const VISIBLE = {
   asNeeded: ['amount'],
 };
 
-function buildForm(med, onDone) {
+/** Réglages du stock (7.2). Pour un traitement existant : restant calculé + actions. */
+function stockCard(med, data) {
+  const status = med && data ? stockStatus(med, data.logs, data.refills, dayKey()) : null;
+  const initial = input('', { inputmode: 'decimal', placeholder: 'ex. 30' });
+  const refillAt = input(med?.refillAt != null ? decimal(med.refillAt) : '', {
+    inputmode: 'decimal',
+    placeholder: 'ex. 7',
+  });
+  const packSize = input(med?.packSize != null ? decimal(med.packSize) : '', {
+    inputmode: 'decimal',
+    placeholder: 'ex. 30',
+  });
+  const pharmacy = input(med?.pharmacy, { maxlength: 60 });
+  const price = input(med?.price ?? '', { inputmode: 'numeric', placeholder: 'FCFA' });
+
+  const current = med
+    ? tracksStock(med)
+      ? h(
+          'div',
+          { class: 'notice' },
+          stockBadge(med, status),
+          h(
+            'div',
+            { class: 'row' },
+            h(
+              'button',
+              {
+                class: 'btn btn--ghost btn--sm',
+                type: 'button',
+                onclick: () => openStockSheet(med, status?.remaining),
+              },
+              'Compter',
+            ),
+            h(
+              'button',
+              {
+                class: 'btn btn--primary btn--sm',
+                type: 'button',
+                onclick: () => openRefillSheet(med, data.refills),
+              },
+              "J'ai racheté",
+            ),
+          ),
+        )
+      : h(
+          'button',
+          {
+            class: 'btn btn--ghost',
+            type: 'button',
+            onclick: () => openStockSheet(med, null),
+          },
+          'Suivre le stock : saisir la quantité restante',
+        )
+    : field('Quantité actuelle (facultatif)', initial, 'Pour suivre le stock et être prévenu.');
+
+  /** Champs du stock au format API, ou un message d'erreur. */
+  function read() {
+    const qty = (el) => {
+      const raw = el.value.trim().replace(',', '.');
+      if (!raw) return null;
+      return /^\d{1,6}(\.\d{1,2})?$/.test(raw) && Number(raw) <= 100000 ? Number(raw) : undefined;
+    };
+    const values = { refillAt: qty(refillAt), packSize: qty(packSize) };
+    if (Object.values(values).includes(undefined)) return 'Stock : quantité invalide.';
+    if (values.packSize === 0) return 'Taille de boîte invalide.';
+    const xof = price.value.trim() ? parseXOF(price.value) : null;
+    if (price.value.trim() && !xof) return 'Prix invalide (FCFA, nombre entier).';
+    const result = { ...values, pharmacy: pharmacy.value.trim() || null, price: xof };
+    if (!med) {
+      const start = qty(initial);
+      if (start === undefined) return 'Quantité actuelle invalide.';
+      if (start != null) Object.assign(result, { stockQty: start, stockAt: nowStamp() });
+    }
+    return result;
+  }
+
+  return {
+    el: card({
+      title: 'Stock (facultatif)',
+      body: [
+        current,
+        h(
+          'div',
+          { class: 'form-grid' },
+          field("Seuil d'alerte", refillAt),
+          field('Taille de boîte', packSize),
+        ),
+        h(
+          'div',
+          { class: 'form-grid' },
+          field('Pharmacie habituelle', pharmacy),
+          field('Prix de la boîte', price),
+        ),
+      ],
+    }),
+    read,
+  };
+}
+
+function buildForm(med, onDone, data = null) {
   const isNew = !med;
   const s = med?.schedule ?? { type: 'daily', times: [{ time: '08:00', amount: 1 }] };
   const r = { ...DEFAULT_REMINDER, ...med?.reminder };
@@ -237,6 +340,7 @@ function buildForm(med, onDone) {
   });
   const startDate = input(med?.startDate ?? dayKey(), { type: 'date', required: true });
   const endDate = input(med?.endDate ?? '', { type: 'date' });
+  const stock = stockCard(med, data);
 
   const intervalLabel = h('span', { class: 'field__label' });
   const parts = {
@@ -322,14 +426,17 @@ function buildForm(med, onDone) {
   async function submit(e) {
     e.preventDefault();
     const schedule = readSchedule();
+    const stockFields = stock.read();
     const error =
       typeof schedule === 'string'
         ? schedule
-        : !name.value.trim() || !unit.value.trim()
-          ? 'Nom et unité sont obligatoires.'
-          : endDate.value && endDate.value < startDate.value
-            ? 'La date de fin est avant la date de début.'
-            : null;
+        : typeof stockFields === 'string'
+          ? stockFields
+          : !name.value.trim() || !unit.value.trim()
+            ? 'Nom et unité sont obligatoires.'
+            : endDate.value && endDate.value < startDate.value
+              ? 'La date de fin est avant la date de début.'
+              : null;
     if (error) {
       showToast(error, { tone: 'danger' });
       return;
@@ -346,6 +453,7 @@ function buildForm(med, onDone) {
         startDate: startDate.value,
         endDate: endDate.value || null,
         active: med?.active ?? true,
+        ...stockFields,
         notes: notes.value.trim() || null,
         schedule,
         reminder: {
@@ -450,6 +558,7 @@ function buildForm(med, onDone) {
         ),
       ],
     }),
+    stock.el,
     card({ title: 'Notes', body: notes }),
     h(
       'div',
@@ -488,7 +597,7 @@ export function renderMedForm(outlet, id) {
     return undefined;
   }
   let mounted = false;
-  return watchMedsAndLogs(({ meds }) => {
+  return watchMedsAndLogs(({ meds, logs, refills }) => {
     if (mounted) return; // pas de reconstruction pendant la saisie
     mounted = true;
     const med = meds.find((m) => m.id === id);
@@ -504,6 +613,6 @@ export function renderMedForm(outlet, id) {
       return;
     }
     header.querySelector('.page-title').textContent = med.name;
-    mount(outlet, header, buildForm(med, done));
+    mount(outlet, header, buildForm(med, done, { logs, refills }));
   }, reportError);
 }
