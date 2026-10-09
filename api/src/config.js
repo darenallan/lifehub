@@ -16,6 +16,12 @@ export function loadConfig(env = process.env) {
       .map((s) => s.trim())
       .filter(Boolean),
     authEmulatorHost: env.FIREBASE_AUTH_EMULATOR_HOST || null,
+    // Web Push (facultatif) : sans les deux clés VAPID, les routes push répondent 503.
+    vapidPublicKey: env.VAPID_PUBLIC_KEY || null,
+    vapidPrivateKey: env.VAPID_PRIVATE_KEY || null,
+    vapidSubject: env.VAPID_SUBJECT || null,
+    // Secret partagé avec le cron externe qui appelle /api/push/tick.
+    pushCronSecret: env.PUSH_CRON_SECRET || null,
   };
 }
 
@@ -25,6 +31,9 @@ export function assertConfig(config) {
   if (!config.adminEmail) missing.push('ADMIN_EMAIL');
   if (config.isHosted && !config.databaseUrl) missing.push('DATABASE_URL');
   if (missing.length) throw new Error(`Variables manquantes : ${missing.join(', ')}`);
+  if (config.pushCronSecret && config.pushCronSecret.length < 32) {
+    throw new Error('PUSH_CRON_SECRET trop court (32 caractères minimum).');
+  }
   // Les jetons de l'émulateur ne sont pas signés : jamais en production.
   if (config.isHosted && config.authEmulatorHost) {
     throw new Error('FIREBASE_AUTH_EMULATOR_HOST interdit en production.');

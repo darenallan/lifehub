@@ -39,6 +39,34 @@ Ces valeurs sont publiques (elles finissent dans le JavaScript du site). Les dé
 | `ALLOWED_ORIGINS`     | `https://lifehub-jade-ten.vercel.app` (plusieurs origines : séparées par des virgules) |
 | `FIREBASE_PROJECT_ID` | `lifehub-1d337` (fixé dans `render.yaml`)                                              |
 | `NODE_VERSION`        | `24` (fixé dans `render.yaml`)                                                         |
+| `VAPID_PUBLIC_KEY`    | clé publique Web Push (voir « Rappels app fermée ») — facultatif                       |
+| `VAPID_PRIVATE_KEY`   | clé privée Web Push — **secret**                                                       |
+| `PUSH_CRON_SECRET`    | secret partagé avec cron-job.org (64 caractères hexadécimaux) — **secret**             |
+
+## Rappels app fermée (Web Push)
+
+Sans les trois variables ci-dessous, l'app marche normalement mais la carte « Rappels app fermée » affiche « Pas encore configuré sur le serveur ».
+
+1. **Générer les clés** (une seule fois, sur ton PC) :
+   ```bash
+   npx --prefix api web-push generate-vapid-keys
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+   La première commande donne `Public Key` et `Private Key`, la seconde le secret du cron.
+2. **Render** → `lifehub-api` → Environment : ajouter `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_CRON_SECRET`, puis « Save, rebuild, and deploy ». Ne jamais changer les clés VAPID ensuite : tous les appareils abonnés devraient se réabonner.
+3. **cron-job.org** (gratuit) → créer un compte → « Create cronjob » :
+   - URL : `https://lifehub-api-pryz.onrender.com/api/push/tick`
+   - Planning : toutes les minutes
+   - Avancé → Méthode **POST**, en-tête `x-cron-secret` = la valeur de `PUSH_CRON_SECRET`
+   - Activer « Notify on failure » (prévenu si l'API ne répond plus).
+4. **Sur chaque appareil** : Plus → Réglages → « Rappels app fermée » → « Activer sur cet appareil ». Sur iPhone, l'app doit d'abord être installée sur l'écran d'accueil (iOS 16.4+).
+
+À savoir :
+
+- Le cron réveille l'API toutes les minutes : elle reste allumée (~744 h/mois sur les 750 h gratuites de Render, donc **un seul service** gratuit possible). Neon n'est pas réveillé à chaque minute : l'API garde le planning en mémoire et n'écrit en base que quand un rappel part.
+- Le contenu des notifications est toujours générique (« C'est l'heure d'une prise », « Rappel de rendez-vous ») : aucun nom de médicament ne passe par les serveurs de Google, Apple ou Mozilla.
+- Chaque appareil envoie le planning des 7 prochains jours quand il change : un appareil qui n'ouvre pas l'app pendant plus de 7 jours ne recevra plus de rappels au-delà.
+- Tester : `curl -X POST -H "x-cron-secret: <secret>" https://lifehub-api-pryz.onrender.com/api/push/tick` doit répondre `{"sent":0}` (ou plus).
 
 ## Réglages de sécurité en place
 

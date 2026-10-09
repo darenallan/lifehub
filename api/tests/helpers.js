@@ -39,7 +39,8 @@ export const TEST_COLLECTIONS = {
   },
 };
 
-export async function setup() {
+/** extra : surcharge de configuration ; pushSender : faux envoyeur Web Push. */
+export async function setup({ extra = {}, pushSender = null } = {}) {
   const db = await createPgliteDb();
   await migrate(db);
   await db.exec(`CREATE TABLE notes (
@@ -54,12 +55,14 @@ export async function setup() {
     isHosted: false,
     adminEmail: ADMIN_EMAIL,
     allowedOrigins: ['http://127.0.0.1:7070'],
+    ...extra,
   };
   const app = await buildApp({
     db,
     verifyToken: fakeVerify,
     config,
     collections: TEST_COLLECTIONS,
+    pushSender,
   });
   return { app, db };
 }

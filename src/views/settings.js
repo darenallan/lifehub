@@ -10,6 +10,7 @@ import { parseBackup } from '../lib/backup.js';
 import { dayKey } from '../lib/dates.js';
 import { exportBackup, importBackup } from '../repos/extras.js';
 import { accessCard } from './accessCard.js';
+import { pushCard } from './pushCard.js';
 import { card, pageHeader } from './common.js';
 
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -161,6 +162,7 @@ export function renderSettings(outlet, { user, role }) {
   const { form, input } = nameForm();
   // Visible seulement si l'API confirme que c'est le propriétaire.
   const access = isAdmin ? accessCard() : null;
+  const push = isAdmin ? pushCard() : null;
 
   const accountActions = h(
     'div',
@@ -189,6 +191,7 @@ export function renderSettings(outlet, { user, role }) {
         : null,
       card({ title: 'Apparence', body: themeSwitch(isAdmin) }),
       isAdmin ? dataCard() : null,
+      push?.el,
       access?.el,
       card({
         title: 'Compte',
@@ -208,5 +211,6 @@ export function renderSettings(outlet, { user, role }) {
   return () => {
     unsubscribe();
     access.cleanup();
+    push.cleanup();
   };
 }

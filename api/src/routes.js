@@ -1,4 +1,5 @@
 import { registerAccessRoutes } from './access.js';
+import { registerPushRoutes } from './push.js';
 import { AuthError } from './auth.js';
 import { seedDefaultCategories } from './defaults.js';
 import { acceptInvites, memberHouses, registerHouseRoutes } from './house.js';
@@ -36,7 +37,7 @@ function requireRole(request) {
 
 const firstName = (name) => (name.trim().split(/\s+/)[0] ?? '').slice(0, 60);
 
-export function registerRoutes(app, { db, collections, authenticate }) {
+export function registerRoutes(app, { db, collections, authenticate, push, config }) {
   // Pas d'accès base : la sonde de Render ne doit pas réveiller Neon.
   app.get('/healthz', async () => ({ ok: true }));
 
@@ -61,6 +62,12 @@ export function registerRoutes(app, { db, collections, authenticate }) {
 
   registerHouseRoutes(app, { db, authenticate });
   registerAccessRoutes(app, { db, authenticate });
+  registerPushRoutes(app, {
+    authenticate,
+    push,
+    publicKey: config.vapidPublicKey,
+    cronSecret: config.pushCronSecret,
+  });
 
   // 60 synchros / minute / compte : large pour l'app (une sync par écriture groupée),
   // bloquant pour un script qui martèlerait l'API avec un jeton volé.

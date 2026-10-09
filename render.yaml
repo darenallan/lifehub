@@ -24,3 +24,10 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+      # Web Push (rappels app fermée) : voir DEPLOIEMENT.md. Sans ces clés, le push reste désactivé.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: PUSH_CRON_SECRET
+        sync: false

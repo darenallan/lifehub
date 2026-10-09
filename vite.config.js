@@ -45,6 +45,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
+        // Gestion des notifications Web Push (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true,
         // Navigation : réseau d'abord, repli sur le shell précaché.
         navigateFallback: null,

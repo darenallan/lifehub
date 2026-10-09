@@ -16,6 +16,7 @@ import {
   whenLabel,
 } from '../../src/lib/health/care.js';
 import { allTypes } from '../../src/lib/health/measures.js';
+import { planReminders, planSignature } from '../../src/lib/health/pushPlan.js';
 import { csvCell, dosesCsv, measuresCsv, toCsv } from '../../src/lib/health/report.js';
 import { parseStamp } from '../../src/lib/health/schedule.js';
 
@@ -199,3 +200,75 @@ describe('exports CSV', () => {
   });
 });
 
+describe('planning Web Push', () => {
+  const reminder = {
+    enabled: true,
+    advanceMin: 5,
+    repeatEveryMin: 0,
+    repeatCount: 0,
+    snoozeMin: 15,
+    discreet: false,
+  };
+  const med = (id, data = {}) => ({
+    id,
+    name: `Secret-${id}`,
+    active: true,
+    startDate: '2026-10-01',
+    endDate: null,
+    reminder,
+    schedule: { type: 'daily', times: [{ time: '08:00', amount: 1 }] },
+    ...data,
+  });
+
+  it('prises à venir (avance comprise), une seule étiquette par horaire, sans nom', () => {
+    const logs = [
+      { medId: 'a', date: '2026-10-09', time: '08:00', status: 'taken', scheduled: true },
+    ];
+    const plan = planReminders([med('a'), med('b')], logs, [], at('2026-10-08T09:00'), 3);
+    expect(plan).toEqual([
+      { tag: 'dose-2026-10-09-08:00', kind: 'dose', at: '2026-10-09T07:55' },
+      { tag: 'dose-2026-10-10-08:00', kind: 'dose', at: '2026-10-10T07:55' },
+    ]);
+    expect(JSON.stringify(plan)).not.toContain('Secret');
+  });
+
+  it('report en cours, rappels coupés et traitements archivés', () => {
+    const snoozed = {
+      medId: 'a',
+      date: '2026-10-08',
+      time: '08:00',
+      status: 'snoozed',
+      snoozeUntil: '2026-10-08T08:20',
+      scheduled: true,
+    };
+    const meds = [
+      med('a'),
+      med('off', { reminder: { ...reminder, enabled: false } }),
+      med('old', { active: false }),
+    ];
+    const plan = planReminders(meds, [snoozed], [], at('2026-10-08T08:10'), 1);
+    expect(plan).toEqual([{ tag: 'dose-2026-10-08-08:00', kind: 'dose', at: '2026-10-08T08:20' }]);
+  });
+
+  it('rendez-vous : la veille et N heures avant, seulement dans le futur', () => {
+    const appointments = [
+      {
+        id: 'r1',
+        status: 'planned',
+        at: '2026-10-09T10:00',
+        remindDayBefore: true,
+        remindHoursBefore: 2,
+      },
+      {
+        id: 'r2',
+        status: 'cancelled',
+        at: '2026-10-09T11:00',
+        remindDayBefore: true,
+        remindHoursBefore: 2,
+      },
+    ];
+    const plan = planReminders([], [], appointments, at('2026-10-08T12:00'));
+    expect(plan.map((r) => `${r.tag} ${r.at}`)).toEqual(['rdv|r1|hours 2026-10-09T08:00']);
+    expect(planSignature(plan)).toBe('rdv|r1|hours@2026-10-09T08:00');
+  });
+});

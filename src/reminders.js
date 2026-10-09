@@ -3,6 +3,7 @@
 import { showToast } from './components/toast.js';
 import { dayKey } from './lib/dates.js';
 import { dueReminders, taskBucket, timeKey } from './lib/tasks.js';
+import { syncPushSchedule } from './webpush.js';
 import { alertText, doseAlerts } from './lib/health/reminders.js';
 import { appointmentAlerts, appointmentTitle, whenLabel } from './lib/health/care.js';
 import {
@@ -160,6 +161,8 @@ export function startReminders(engine) {
 
     await checkDoses(engine, reminded);
     await checkAppointments(engine, reminded);
+    // Web Push : planning renvoyé au serveur s'il a changé (au mieux, réessayé au tour suivant).
+    syncPushSchedule(engine).catch(() => {});
     saveReminded(today, reminded);
   }
 

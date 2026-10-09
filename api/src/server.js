@@ -32,6 +32,19 @@ if (config.authEmulatorHost) app.log.warn("Jetons de l'émulateur Auth acceptés
 
 await app.listen({ host: config.host, port: config.port });
 
+// En local, pas de cron externe : le serveur déclenche lui-même l'envoi des rappels push.
+if (!config.isHosted && config.pushCronSecret) {
+  setInterval(() => {
+    app
+      .inject({
+        method: 'POST',
+        url: '/api/push/tick',
+        headers: { 'x-cron-secret': config.pushCronSecret },
+      })
+      .catch((err) => app.log.error(err));
+  }, 60_000).unref();
+}
+
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {
     await app.close();
